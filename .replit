@@ -1,8 +1,12 @@
-run = "export PATH=/nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin:$PATH && /nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin/npm run dev"
+run = "npm run dev"
+modules = ["nodejs-20", "web"]
 
 [deployment]
-run = ["sh", "-c", "export PATH=/nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin:$PATH && /nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin/npm run dev"]
+run = ["sh", "-c", "npm run dev"]
 
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[nix]
+channel = "stable-24_05"
