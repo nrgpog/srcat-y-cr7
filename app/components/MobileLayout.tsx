@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { FiTool, FiCheck, FiGrid, FiSettings, FiMenu, FiX } from 'react-icons/fi';
+import { FiTool, FiCheck, FiMenu, FiX } from 'react-icons/fi';
 
 export default function MobileLayout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,15 +29,7 @@ export default function MobileLayout() {
               <ul className="space-y-4">
                 <li className="flex items-center space-x-3 p-3 bg-[#1E1E1E] rounded-lg">
                   <FiCheck className="w-5 h-5" />
-                  <span>Checkers</span>
-                </li>
-                <li className="flex items-center space-x-3 p-3 hover:bg-[#1E1E1E] rounded-lg transition-colors">
-                  <FiGrid className="w-5 h-5" />
-                  <span>Dashboard</span>
-                </li>
-                <li className="flex items-center space-x-3 p-3 hover:bg-[#1E1E1E] rounded-lg transition-colors">
-                  <FiSettings className="w-5 h-5" />
-                  <span>Settings</span>
+                  <span>Steam checker</span>
                 </li>
               </ul>
             </nav>
@@ -48,46 +40,20 @@ export default function MobileLayout() {
       {/* Contenido Principal */}
       <main className="pt-20 px-4 pb-6">
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold mb-6 text-white">Checkers</h2>
+          <h2 className="text-2xl font-bold mb-6 text-white">Steam checker</h2>
           
           {/* Tarjetas en vista móvil */}
           <div className="space-y-4">
             <div className="bg-[#1A1A1A] p-4 rounded-lg">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white">Syntax Checker</h3>
+                <h3 className="text-lg font-semibold text-white">Steam checker</h3>
                 <div className="w-8 h-8 bg-[#2A2A2A] text-white rounded-full flex items-center justify-center">
                   <FiCheck className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-sm text-gray-400 mb-3">Verifica la sintaxis de tu código en tiempo real</p>
+              <p className="text-sm text-gray-400 mb-3">Verifica la validez de cuentas de Steam</p>
               <button className="w-full py-2 bg-[#2A2A2A] text-white rounded-lg text-sm hover:bg-[#333333] transition-colors">
-                Iniciar Check
-              </button>
-            </div>
-
-            <div className="bg-[#1A1A1A] p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white">Code Quality</h3>
-                <div className="w-8 h-8 bg-[#2A2A2A] text-white rounded-full flex items-center justify-center">
-                  <FiCheck className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-sm text-gray-400 mb-3">Analiza la calidad de tu código y obtén sugerencias</p>
-              <button className="w-full py-2 bg-[#2A2A2A] text-white rounded-lg text-sm hover:bg-[#333333] transition-colors">
-                Analizar
-              </button>
-            </div>
-
-            <div className="bg-[#1A1A1A] p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white">Performance</h3>
-                <div className="w-8 h-8 bg-[#2A2A2A] text-white rounded-full flex items-center justify-center">
-                  <FiCheck className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-sm text-gray-400 mb-3">Mide el rendimiento de tu aplicación</p>
-              <button className="w-full py-2 bg-[#2A2A2A] text-white rounded-lg text-sm hover:bg-[#333333] transition-colors">
-                Medir
+                Entrar a checker
               </button>
             </div>
           </div>
