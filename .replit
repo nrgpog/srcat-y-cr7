@@ -1,0 +1,8 @@
+run = "export PATH=/nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin:$PATH && /nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin/npm run dev"
+
+[deployment]
+run = ["sh", "-c", "export PATH=/nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin:$PATH && /nix/store/5kk9h132i0cppcnqfsq06shjdxk1jm5j-nodejs-20.16.0-wrapped/bin/npm run dev"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
