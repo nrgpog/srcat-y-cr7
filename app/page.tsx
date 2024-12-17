@@ -1,38 +1,90 @@
 import Image from "next/image";
+import { FiTool, FiCheck, FiGrid, FiSettings, FiMenu } from 'react-icons/fi';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white text-black">
-      <main className="container mx-auto px-4 py-20">
-        <div className="flex flex-col items-center justify-center space-y-8 text-center">
-          <h1 className="text-6xl font-bold tracking-tight">
-            Bienvenido
-          </h1>
-          <p className="text-xl max-w-2xl mx-auto text-gray-700">
-            Descubre una experiencia única y minimalista
-          </p>
-          <div className="w-16 h-1 bg-black my-8"></div>
-          <button className="px-8 py-3 bg-black text-white hover:bg-gray-800 transition-colors duration-300 text-lg">
-            Comenzar
-          </button>
+    <div className="flex min-h-screen bg-white">
+      {/* Sidebar */}
+      <aside className="w-64 bg-black text-white min-h-screen p-6">
+        <div className="flex items-center space-x-3 mb-10">
+          <FiTool className="w-6 h-6" />
+          <h1 className="text-xl font-bold">Tools</h1>
         </div>
         
-        <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="p-6 border border-black">
-            <h2 className="text-2xl font-semibold mb-4">Diseño</h2>
-            <p className="text-gray-700">Minimalismo en blanco y negro para una experiencia visual única</p>
+        <nav className="space-y-6">
+          <div>
+            <h2 className="text-gray-400 text-sm uppercase mb-3">Menu</h2>
+            <ul className="space-y-3">
+              <li className="flex items-center space-x-3 p-2 bg-gray-800 rounded-lg">
+                <FiCheck className="w-5 h-5" />
+                <span>Checkers</span>
+              </li>
+              <li className="flex items-center space-x-3 p-2 hover:bg-gray-800 rounded-lg cursor-pointer">
+                <FiGrid className="w-5 h-5" />
+                <span>Dashboard</span>
+              </li>
+              <li className="flex items-center space-x-3 p-2 hover:bg-gray-800 rounded-lg cursor-pointer">
+                <FiSettings className="w-5 h-5" />
+                <span>Settings</span>
+              </li>
+            </ul>
           </div>
-          <div className="p-6 border border-black">
-            <h2 className="text-2xl font-semibold mb-4">Elegancia</h2>
-            <p className="text-gray-700">Simplicidad y sofisticación en cada detalle</p>
-          </div>
-          <div className="p-6 border border-black">
-            <h2 className="text-2xl font-semibold mb-4">Innovación</h2>
-            <p className="text-gray-700">Tecnología de vanguardia con un toque clásico</p>
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8">
+        <div className="max-w-6xl mx-auto">
+          <header className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold">Checkers</h1>
+            <button className="p-2 hover:bg-gray-100 rounded-lg">
+              <FiMenu className="w-6 h-6" />
+            </button>
+          </header>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Checker Cards */}
+            <div className="p-6 border border-gray-200 rounded-lg hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold">Syntax Checker</h3>
+                <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center">
+                  <FiCheck className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-gray-600 mb-4">Verifica la sintaxis de tu código en tiempo real</p>
+              <button className="w-full py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
+                Iniciar Check
+              </button>
+            </div>
+
+            <div className="p-6 border border-gray-200 rounded-lg hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold">Code Quality</h3>
+                <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center">
+                  <FiCheck className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-gray-600 mb-4">Analiza la calidad de tu código y obtén sugerencias</p>
+              <button className="w-full py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
+                Analizar
+              </button>
+            </div>
+
+            <div className="p-6 border border-gray-200 rounded-lg hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold">Performance</h3>
+                <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center">
+                  <FiCheck className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-gray-600 mb-4">Mide el rendimiento de tu aplicación</p>
+              <button className="w-full py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
+                Medir
+              </button>
+            </div>
           </div>
         </div>
       </main>
     </div>
   );
 }
-// esta es una prueba
