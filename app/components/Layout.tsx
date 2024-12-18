@@ -6,12 +6,21 @@ import Image from 'next/image';
 
 interface LayoutProps {
   children?: React.ReactNode;
+  onToolChange?: (tool: 'checker' | 'gen') => void;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children, onToolChange }: LayoutProps) {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<'checker' | 'gen'>('checker');
+
+  const handleToolChange = (tool: 'checker' | 'gen') => {
+    setCurrentTool(tool);
+    setIsMenuOpen(false);
+    if (onToolChange) {
+      onToolChange(tool);
+    }
+  };
 
   // Pantalla de carga
   if (status === "loading") {
@@ -127,10 +136,7 @@ export default function Layout({ children }: LayoutProps) {
           )}
 
           <button
-            onClick={() => {
-              setCurrentTool('checker');
-              setIsMenuOpen(false);
-            }}
+            onClick={() => handleToolChange('checker')}
             className={`w-full p-3 rounded-lg flex items-center gap-3 ${
               currentTool === 'checker' ? 'bg-[#1A1A1A]' : 'hover:bg-[#1A1A1A]'
             } transition-colors text-white`}
@@ -139,10 +145,7 @@ export default function Layout({ children }: LayoutProps) {
             <span>Card Checker</span>
           </button>
           <button
-            onClick={() => {
-              setCurrentTool('gen');
-              setIsMenuOpen(false);
-            }}
+            onClick={() => handleToolChange('gen')}
             className={`w-full p-3 rounded-lg flex items-center gap-3 ${
               currentTool === 'gen' ? 'bg-[#1A1A1A]' : 'hover:bg-[#1A1A1A]'
             } transition-colors text-white`}
