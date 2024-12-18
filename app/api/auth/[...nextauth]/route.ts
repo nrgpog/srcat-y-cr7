@@ -29,7 +29,20 @@ declare module "next-auth" {
   }
 }
 
-const REPLIT_URL = "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
+// Función para determinar si estamos en Replit
+const isReplit = () => {
+  return process.env.REPL_ID && process.env.REPL_OWNER;
+};
+
+// Función para obtener la URL base según el entorno
+const getBaseUrl = () => {
+  // Si estamos en Replit
+  if (isReplit()) {
+    return "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
+  }
+  // En desarrollo local
+  return "http://localhost:3000";
+};
 
 const handler = NextAuth({
   providers: [
@@ -41,100 +54,63 @@ const handler = NextAuth({
           scope: "identify email",
         },
       },
-      httpOptions: {
-        timeout: 10000, // Aumentar el timeout a 10 segundos
-      },
     }),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      try {
-        console.log("🔐 SignIn callback iniciado");
-        console.log("👤 User data:", JSON.stringify(user, null, 2));
-        console.log("🔑 Account data:", JSON.stringify(account, null, 2));
-        console.log("👥 Profile data:", JSON.stringify(profile, null, 2));
-        return true;
-      } catch (error) {
-        console.error("❌ Error en signIn callback:", error);
-        return false;
-      }
+      return true;
     },
     async jwt({ token, account, profile }) {
-      try {
-        if (account && profile) {
-          token.accessToken = account.access_token;
-          token.discordId = (profile as any).id;
-        }
-        return token;
-      } catch (error) {
-        console.error("❌ Error en JWT callback:", error);
-        return token;
+      if (account && profile) {
+        token.accessToken = account.access_token;
+        token.discordId = profile?.id;
       }
+      return token;
     },
     async session({ session, token }) {
-      try {
-        if (session.user) {
-          session.user.discordId = token.discordId;
-          session.user.accessToken = token.accessToken;
-        }
-        return session;
-      } catch (error) {
-        console.error("❌ Error en session callback:", error);
-        return session;
+      if (session.user) {
+        (session.user as any).discordId = token.discordId;
+        (session.user as any).accessToken = token.accessToken;
       }
+      return session;
     },
     async redirect({ url, baseUrl }) {
-      console.log("🔄 Redirect callback:", { url, baseUrl });
-
-      // Si la URL contiene un error
-      if (url.includes("error")) {
-        console.log("❌ Error en URL, redirigiendo a página de error");
-        return `${REPLIT_URL}/auth/error`;
+      const currentBaseUrl = getBaseUrl();
+      
+      // Manejar la redirección después del callback de Discord
+      if (url.includes('/api/auth/callback/discord')) {
+        return currentBaseUrl;
       }
-
-      // Si es el callback de Discord
-      if (url.includes("/api/auth/callback/discord")) {
-        console.log("✅ Callback de Discord detectado");
-        return `${REPLIT_URL}/dashboard`;
+      
+      // Si la URL es la página de inicio de sesión y el usuario ya está autenticado
+      if (url.includes('/auth/signin')) {
+        return currentBaseUrl;
       }
-
-      // Si es una URL relativa
+      
+      // Si la URL comienza con una barra, añadirla a la URL base actual
       if (url.startsWith("/")) {
-        console.log("📍 URL relativa detectada");
-        return `${REPLIT_URL}${url}`;
+        return `${currentBaseUrl}${url}`;
       }
-
-      // Si la URL es del mismo dominio
-      if (url.startsWith(REPLIT_URL)) {
-        console.log("🏠 URL del mismo dominio");
+      
+      // Si la URL comienza con la URL base actual, permitirla
+      if (url.startsWith(currentBaseUrl)) {
         return url;
       }
-
-      console.log("➡️ Redirección por defecto al dashboard");
-      return `${REPLIT_URL}/dashboard`;
-    }
+      
+      // Por defecto, redirigir a la página principal
+      return currentBaseUrl;
+    },
   },
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
+  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 1 día
+    maxAge: 30 * 24 * 60 * 60, // 30 días
   },
-  cookies: {
-    sessionToken: {
-      name: `__Secure-next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-        domain: ".worf.replit.dev" // Dominio específico de Replit
-      }
-    }
-  },
-  debug: true,
+  debug: process.env.NODE_ENV === "development",
 });
 
 export { handler as GET, handler as POST };
