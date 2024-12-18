@@ -1,12 +1,23 @@
 run = "npm run dev"
-modules = ["nodejs-20", "web"]
-
-[deployment]
-run = ["sh", "-c", "npm run dev"]
-
-[[ports]]
-localPort = 3000
-externalPort = 80
+hidden = [".build", "node_modules"]
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-22_11"
+
+[env]
+PATH = "/home/runner/$REPL_SLUG/.config/npm/node_global/bin:/home/runner/$REPL_SLUG/node_modules/.bin"
+npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
+
+[packager]
+language = "nodejs"
+
+[packager.features]
+packageSearch = true
+guessImports = true
+
+[languages.javascript]
+pattern = "**/{*.js,*.jsx,*.ts,*.tsx}"
+syntax = "javascript"
+
+[languages.javascript.languageServer]
+start = [ "typescript-language-server", "--stdio" ]
