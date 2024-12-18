@@ -58,12 +58,11 @@ const handler = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account && profile) {
-        return true;
-      }
-      return false;
+      console.log("SignIn callback:", { user, account, profile });
+      return true;
     },
     async jwt({ token, account, profile }) {
+      console.log("JWT callback:", { token, account, profile });
       if (account && profile) {
         token.accessToken = account.access_token;
         token.discordId = (profile as any).id;
@@ -71,6 +70,7 @@ const handler = NextAuth({
       return token;
     },
     async session({ session, token }) {
+      console.log("Session callback:", { session, token });
       if (session.user) {
         session.user.discordId = token.discordId;
         session.user.accessToken = token.accessToken;
@@ -78,26 +78,33 @@ const handler = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const currentBaseUrl = getBaseUrl();
+      console.log("Redirect callback:", { url, baseUrl });
+      // Usar NEXTAUTH_URL como base si está disponible
+      const baseURL = process.env.NEXTAUTH_URL || getBaseUrl();
       
-      // Si es un callback de Discord, asegurarnos de redirigir al dashboard
+      console.log("Using base URL:", baseURL);
+      
+      // Si la URL es del callback de Discord
       if (url.includes('/api/auth/callback/discord')) {
-        return `${currentBaseUrl}/dashboard`;
+        console.log("Redirecting to dashboard");
+        return `${baseURL}/dashboard`;
       }
       
-      // Si es una URL relativa, convertirla a absoluta
+      // Si la URL es relativa
       if (url.startsWith('/')) {
-        return `${currentBaseUrl}${url}`;
+        console.log("Converting relative URL to absolute:", url);
+        return `${baseURL}${url}`;
       }
       
-      // Si la URL ya es del dominio de la aplicación, permitirla
-      if (url.startsWith(currentBaseUrl)) {
+      // Si la URL es del mismo dominio
+      if (url.startsWith(baseURL)) {
+        console.log("URL is from same domain");
         return url;
       }
       
-      // Por defecto, redirigir al dashboard
-      return `${currentBaseUrl}/dashboard`;
-    },
+      console.log("Default redirect to dashboard");
+      return `${baseURL}/dashboard`;
+    }
   },
   pages: {
     signIn: "/auth/signin",
@@ -108,7 +115,7 @@ const handler = NextAuth({
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 días
   },
-  debug: true, // Activamos el modo debug para ver más información
+  debug: true,
 });
 
 export { handler as GET, handler as POST };
