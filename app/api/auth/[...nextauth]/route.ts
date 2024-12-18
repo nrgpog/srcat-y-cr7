@@ -29,18 +29,19 @@ declare module "next-auth" {
   }
 }
 
+// Función para determinar si estamos en Replit
+const isReplit = () => {
+  return process.env.REPL_ID && process.env.REPL_OWNER;
+};
+
 // Función para obtener la URL base según el entorno
 const getBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  // Si estamos en Replit
+  if (isReplit()) {
+    return "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
   }
-  // Para Replit
-  if (typeof window === 'undefined') {
-    // Estamos en el servidor
-    return process.env.NEXTAUTH_URL || "http://localhost:3000";
-  }
-  // Estamos en el cliente
-  return window.location.origin;
+  // En desarrollo local
+  return "http://localhost:3000";
 };
 
 const handler = NextAuth({
@@ -74,10 +75,17 @@ const handler = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const urlBase = getBaseUrl();
-      if (url.startsWith("/")) return `${urlBase}${url}`;
-      if (url.startsWith(urlBase)) return url;
-      return urlBase;
+      const currentBaseUrl = getBaseUrl();
+      // Si la URL comienza con una barra, añadirla a la URL base actual
+      if (url.startsWith("/")) {
+        return `${currentBaseUrl}${url}`;
+      }
+      // Si la URL comienza con la URL base actual, permitirla
+      if (url.startsWith(currentBaseUrl)) {
+        return url;
+      }
+      // Por defecto, redirigir a la URL base actual
+      return currentBaseUrl;
     },
   },
   pages: {
