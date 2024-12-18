@@ -76,16 +76,24 @@ const handler = NextAuth({
     },
     async redirect({ url, baseUrl }) {
       const currentBaseUrl = getBaseUrl();
+      
+      // Si la URL es la de callback, redirigir a la página principal
+      if (url.includes('/api/auth/callback')) {
+        return `${currentBaseUrl}/`;
+      }
+      
       // Si la URL comienza con una barra, añadirla a la URL base actual
       if (url.startsWith("/")) {
         return `${currentBaseUrl}${url}`;
       }
+      
       // Si la URL comienza con la URL base actual, permitirla
       if (url.startsWith(currentBaseUrl)) {
         return url;
       }
-      // Por defecto, redirigir a la URL base actual
-      return currentBaseUrl;
+      
+      // Por defecto, redirigir a la página principal
+      return `${currentBaseUrl}/`;
     },
   },
   pages: {
