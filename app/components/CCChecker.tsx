@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { FiZap, FiTrash2, FiCopy, FiCheck, FiX } from 'react-icons/fi';
+import { FiCreditCard, FiTrash2, FiCopy, FiCheck, FiX } from 'react-icons/fi';
 
 interface CardResult {
   card: string;
@@ -9,7 +9,7 @@ interface CardResult {
   error?: string;
 }
 
-export default function EnergyChecker() {
+export default function CCChecker() {
   const [cardsInput, setCardsInput] = useState('');
   const [results, setResults] = useState<CardResult[]>([]);
   const [isChecking, setIsChecking] = useState(false);
@@ -23,6 +23,13 @@ export default function EnergyChecker() {
   const isValidCardFormat = (card: string): boolean => {
     const parts = card.split('|');
     return parts.length === 4 && parts[0].length >= 13;
+  };
+
+  const cleanResponse = (details: string) => {
+    if (details.includes("Please consider making a donation")) {
+      return "Charge OK";
+    }
+    return details;
   };
 
   const checkCards = async () => {
@@ -49,7 +56,12 @@ export default function EnergyChecker() {
         if (!response.ok) throw new Error('Network response was not ok');
 
         const data = await response.json();
-        setResults(prev => [...prev, { card: cards[i], ...data }]);
+        setResults(prev => [...prev, { 
+          card: cards[i], 
+          status: data.status,
+          details: data.details ? cleanResponse(data.details) : undefined,
+          error: data.error
+        }]);
         setTotalChecked(i + 1);
       } catch (error) {
         setResults(prev => [...prev, { 
@@ -71,12 +83,11 @@ export default function EnergyChecker() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Panel de entrada */}
       <div className="bg-[#111111] p-6 rounded-2xl border border-[#222222] shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <FiZap className="text-yellow-400" />
-            Energy Checker
+            <FiCreditCard className="text-yellow-400" />
+            CC Checker
           </h2>
           <span className="text-sm text-gray-400">
             {totalChecked}/20 verificadas
@@ -100,7 +111,7 @@ export default function EnergyChecker() {
                 : 'bg-gradient-to-r from-yellow-400 to-orange-500 hover:opacity-90'
             } text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2`}
           >
-            <FiZap className={`w-4 h-4 ${isChecking ? 'animate-pulse' : ''}`} />
+            <FiCreditCard className={`w-4 h-4 ${isChecking ? 'animate-pulse' : ''}`} />
             {isChecking ? 'Verificando...' : 'Verificar Tarjetas'}
           </button>
 
@@ -116,7 +127,6 @@ export default function EnergyChecker() {
         </div>
       </div>
 
-      {/* Resultados */}
       {results.length > 0 && (
         <div className="space-y-3">
           {results.map((result, index) => (
@@ -164,4 +174,4 @@ export default function EnergyChecker() {
       )}
     </div>
   );
-}
+} 
