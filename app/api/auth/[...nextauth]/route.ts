@@ -35,11 +35,18 @@ const allowedUrls = [
   "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev"
 ];
 
-// Detectar la URL base actual
+// Función para obtener la URL base según el entorno
 const getBaseUrl = () => {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.REPLIT_SLUG) return `https://${process.env.REPLIT_SLUG}.repl.co`;
-  return process.env.NEXTAUTH_URL || "http://localhost:3000";
+  // Si estamos en Replit
+  if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+    return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  }
+  // Si tenemos una URL definida en las variables de entorno
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL;
+  }
+  // Por defecto, usar localhost
+  return "http://localhost:3000";
 };
 
 const handler = NextAuth({
@@ -61,14 +68,14 @@ const handler = NextAuth({
     async jwt({ token, account, profile }) {
       if (account && profile) {
         token.accessToken = account.access_token;
-        token.discordId = (profile as DiscordProfile).id;
+        token.discordId = profile?.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.discordId = token.discordId;
-        session.user.accessToken = token.accessToken;
+        (session.user as any).discordId = token.discordId;
+        (session.user as any).accessToken = token.accessToken;
       }
       return session;
     },
