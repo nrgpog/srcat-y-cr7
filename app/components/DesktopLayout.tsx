@@ -2,21 +2,28 @@
 import { useState } from 'react';
 import { FiZap, FiMenu, FiX, FiTrash2, FiCopy, FiCheck } from 'react-icons/fi';
 
+interface CardResult {
+  card: string;
+  status: 'Live' | 'Dead';
+  details?: string;
+  error?: string;
+}
+
 export default function EnergyChecker() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cardsInput, setCardsInput] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<CardResult[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [totalChecked, setTotalChecked] = useState(0);
-  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Función para limpiar el formato de la tarjeta
-  const formatCard = (card) => {
+  const formatCard = (card: string): string => {
     return card.replace(/[^\d|]/g, '');
   };
 
   // Función para validar el formato de la tarjeta
-  const isValidCardFormat = (card) => {
+  const isValidCardFormat = (card: string): boolean => {
     const parts = card.split('|');
     return parts.length === 4 && parts[0].length >= 13;
   };
@@ -51,6 +58,7 @@ export default function EnergyChecker() {
       } catch (error) {
         setResults(prev => [...prev, { 
           card: cards[i], 
+          status: 'Dead',
           error: 'Error al verificar la tarjeta'
         }]);
       }
@@ -61,7 +69,7 @@ export default function EnergyChecker() {
   };
 
   // Función para copiar al portapapeles
-  const copyToClipboard = (text, index) => {
+  const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
