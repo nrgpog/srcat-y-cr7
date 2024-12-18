@@ -10,16 +10,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+      router.replace('/auth/signin');
     }
   }, [status, router]);
 
   if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4">Cargando...</h2>
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold mb-4">Cargando...</h2>
+          <p className="text-gray-600">Verificando tu sesión</p>
+        </div>
       </div>
-    </div>;
+    );
   }
 
   if (!session) {
@@ -27,15 +30,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Panel de Control</h1>
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Bienvenido, {session.user?.name}</h2>
+    <div className="min-h-screen bg-gray-100">
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h1 className="text-3xl font-bold mb-2">Panel de Control</h1>
+          <p className="text-gray-600">Bienvenido, {session.user?.name || 'Usuario'}</p>
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Aquí irán las herramientas y funcionalidades */}
-          <div className="bg-blue-100 p-4 rounded-lg">
-            <h3 className="font-bold mb-2">Herramientas de Energía</h3>
-            <p>Accede a todas las herramientas disponibles</p>
+          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+            <h3 className="font-bold text-xl mb-3">Herramientas de Energía</h3>
+            <p className="text-gray-600">Accede a todas las herramientas disponibles</p>
           </div>
         </div>
       </div>

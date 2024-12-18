@@ -58,41 +58,39 @@ const handler = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      return true;
+      if (account && profile) {
+        return true;
+      }
+      return false;
     },
     async jwt({ token, account, profile }) {
       if (account && profile) {
         token.accessToken = account.access_token;
-        token.discordId = profile?.id;
+        token.discordId = (profile as any).id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).discordId = token.discordId;
-        (session.user as any).accessToken = token.accessToken;
+        session.user.discordId = token.discordId;
+        session.user.accessToken = token.accessToken;
       }
       return session;
     },
     async redirect({ url, baseUrl }) {
       const currentBaseUrl = getBaseUrl();
       
-      // Después de la autenticación exitosa con Discord, redirigir a la página principal
+      // Si es un callback de Discord, asegurarnos de redirigir al dashboard
       if (url.includes('/api/auth/callback/discord')) {
         return `${currentBaseUrl}/dashboard`;
       }
       
-      // Si el usuario ya está autenticado y trata de acceder a la página de login
-      if (url.includes('/auth/signin')) {
-        return `${currentBaseUrl}/dashboard`;
-      }
-      
-      // Si la URL comienza con una barra, añadirla a la URL base actual
-      if (url.startsWith("/")) {
+      // Si es una URL relativa, convertirla a absoluta
+      if (url.startsWith('/')) {
         return `${currentBaseUrl}${url}`;
       }
       
-      // Si la URL comienza con la URL base actual, permitirla
+      // Si la URL ya es del dominio de la aplicación, permitirla
       if (url.startsWith(currentBaseUrl)) {
         return url;
       }
@@ -110,7 +108,7 @@ const handler = NextAuth({
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 días
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: true, // Activamos el modo debug para ver más información
 });
 
 export { handler as GET, handler as POST };
