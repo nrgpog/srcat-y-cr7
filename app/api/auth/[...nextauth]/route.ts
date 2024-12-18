@@ -29,20 +29,7 @@ declare module "next-auth" {
   }
 }
 
-// Función para determinar si estamos en Replit
-const isReplit = () => {
-  return process.env.REPL_ID && process.env.REPL_OWNER;
-};
-
-// Función para obtener la URL base según el entorno
-const getBaseUrl = () => {
-  // Si estamos en Replit
-  if (isReplit()) {
-    return "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
-  }
-  // En desarrollo local
-  return "http://localhost:3000";
-};
+const REPLIT_URL = "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
 
 const handler = NextAuth({
   providers: [
@@ -53,6 +40,9 @@ const handler = NextAuth({
         params: {
           scope: "identify email",
         },
+      },
+      httpOptions: {
+        timeout: 10000, // Aumentar el timeout a 10 segundos
       },
     }),
   ],
@@ -71,15 +61,10 @@ const handler = NextAuth({
     },
     async jwt({ token, account, profile }) {
       try {
-        console.log("🎟️ JWT callback iniciado");
-        console.log("🔑 Token actual:", JSON.stringify(token, null, 2));
-        
         if (account && profile) {
-          console.log("✅ Actualizando token con nueva información");
           token.accessToken = account.access_token;
           token.discordId = (profile as any).id;
         }
-        
         return token;
       } catch (error) {
         console.error("❌ Error en JWT callback:", error);
@@ -88,13 +73,10 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       try {
-        console.log("📍 Session callback iniciado");
-        
         if (session.user) {
           session.user.discordId = token.discordId;
           session.user.accessToken = token.accessToken;
         }
-        
         return session;
       } catch (error) {
         console.error("❌ Error en session callback:", error);
@@ -102,52 +84,55 @@ const handler = NextAuth({
       }
     },
     async redirect({ url, baseUrl }) {
-      try {
-        console.log("\n🔄 REDIRECT CALLBACK INICIADO 🔄");
-        console.log("📍 URL recibida:", url);
-        console.log("🌐 Base URL:", baseUrl);
-        
-        // Usar la URL base de Replit
-        const baseURL = "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
-        
-        // Si es una URL de error o contiene error
-        if (url.includes('error') || url.includes('OAuthCallback')) {
-          console.log("❌ Error detectado en la URL:", url);
-          return `${baseURL}/auth/error`;
-        }
-        
-        // Si es el callback de Discord
-        if (url.includes('/api/auth/callback/discord')) {
-          console.log("✅ Procesando callback de Discord");
-          return `${baseURL}/dashboard`;
-        }
-        
-        // Si es una URL relativa
-        if (url.startsWith('/')) {
-          return `${baseURL}${url}`;
-        }
-        
-        // Si la URL es del mismo dominio
-        if (url.startsWith(baseURL)) {
-          return url;
-        }
-        
-        // Por defecto, ir al dashboard
-        return `${baseURL}/dashboard`;
-      } catch (error) {
-        console.error("❌ Error en redirect callback:", error);
-        return baseUrl;
+      console.log("🔄 Redirect callback:", { url, baseUrl });
+
+      // Si la URL contiene un error
+      if (url.includes("error")) {
+        console.log("❌ Error en URL, redirigiendo a página de error");
+        return `${REPLIT_URL}/auth/error`;
       }
+
+      // Si es el callback de Discord
+      if (url.includes("/api/auth/callback/discord")) {
+        console.log("✅ Callback de Discord detectado");
+        return `${REPLIT_URL}/dashboard`;
+      }
+
+      // Si es una URL relativa
+      if (url.startsWith("/")) {
+        console.log("📍 URL relativa detectada");
+        return `${REPLIT_URL}${url}`;
+      }
+
+      // Si la URL es del mismo dominio
+      if (url.startsWith(REPLIT_URL)) {
+        console.log("🏠 URL del mismo dominio");
+        return url;
+      }
+
+      console.log("➡️ Redirección por defecto al dashboard");
+      return `${REPLIT_URL}/dashboard`;
     }
   },
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
-  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 días
+    maxAge: 24 * 60 * 60, // 1 día
+  },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+        domain: ".worf.replit.dev" // Dominio específico de Replit
+      }
+    }
   },
   debug: true,
 });
