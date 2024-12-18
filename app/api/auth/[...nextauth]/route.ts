@@ -77,14 +77,14 @@ const handler = NextAuth({
     async redirect({ url, baseUrl }) {
       const currentBaseUrl = getBaseUrl();
       
-      // Manejar la redirección después del callback de Discord
+      // Después de la autenticación exitosa con Discord, redirigir a la página principal
       if (url.includes('/api/auth/callback/discord')) {
-        return currentBaseUrl;
+        return `${currentBaseUrl}/dashboard`;
       }
       
-      // Si la URL es la página de inicio de sesión y el usuario ya está autenticado
+      // Si el usuario ya está autenticado y trata de acceder a la página de login
       if (url.includes('/auth/signin')) {
-        return currentBaseUrl;
+        return `${currentBaseUrl}/dashboard`;
       }
       
       // Si la URL comienza con una barra, añadirla a la URL base actual
@@ -97,8 +97,8 @@ const handler = NextAuth({
         return url;
       }
       
-      // Por defecto, redirigir a la página principal
-      return currentBaseUrl;
+      // Por defecto, redirigir al dashboard
+      return `${currentBaseUrl}/dashboard`;
     },
   },
   pages: {
