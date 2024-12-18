@@ -9,12 +9,18 @@ export default function Dashboard() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log("🔄 Dashboard useEffect ejecutándose");
+    console.log("📊 Estado actual:", status);
+    console.log("👤 Datos de sesión:", session);
+
     if (status === 'unauthenticated') {
+      console.log("❌ Usuario no autenticado, redirigiendo a login");
       router.replace('/auth/signin');
     }
-  }, [status, router]);
+  }, [status, router, session]);
 
   if (status === 'loading') {
+    console.log("⏳ Dashboard en estado de carga");
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-center p-8 bg-white rounded-lg shadow-lg">
@@ -26,9 +32,11 @@ export default function Dashboard() {
   }
 
   if (!session) {
+    console.log("⚠️ No hay sesión disponible en Dashboard");
     return null;
   }
 
+  console.log("✅ Renderizando Dashboard con sesión:", session);
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto px-4 py-8">

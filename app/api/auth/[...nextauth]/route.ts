@@ -58,52 +58,88 @@ const handler = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      console.log("SignIn callback:", { user, account, profile });
+      console.log("🔐 SignIn callback iniciado");
+      console.log("👤 User data:", JSON.stringify(user, null, 2));
+      console.log("🔑 Account data:", JSON.stringify(account, null, 2));
+      console.log("👥 Profile data:", JSON.stringify(profile, null, 2));
       return true;
     },
     async jwt({ token, account, profile }) {
-      console.log("JWT callback:", { token, account, profile });
+      console.log("🎟️ JWT callback iniciado");
+      console.log("🔑 Token actual:", JSON.stringify(token, null, 2));
+      console.log("👤 Account data:", JSON.stringify(account, null, 2));
+      console.log("👥 Profile data:", JSON.stringify(profile, null, 2));
+      
       if (account && profile) {
+        console.log("✅ Actualizando token con nueva información");
         token.accessToken = account.access_token;
         token.discordId = (profile as any).id;
       }
+      
+      console.log("🔄 Token actualizado:", JSON.stringify(token, null, 2));
       return token;
     },
     async session({ session, token }) {
-      console.log("Session callback:", { session, token });
+      console.log("📍 Session callback iniciado");
+      console.log("📌 Session actual:", JSON.stringify(session, null, 2));
+      console.log("🎟️ Token actual:", JSON.stringify(token, null, 2));
+      
       if (session.user) {
+        console.log("✅ Actualizando session con información del token");
         session.user.discordId = token.discordId;
         session.user.accessToken = token.accessToken;
       }
+      
+      console.log("🔄 Session actualizada:", JSON.stringify(session, null, 2));
       return session;
     },
     async redirect({ url, baseUrl }) {
-      console.log("Redirect callback:", { url, baseUrl });
+      console.log("\n🔄 REDIRECT CALLBACK INICIADO 🔄");
+      console.log("📍 URL recibida:", url);
+      console.log("🌐 Base URL:", baseUrl);
+      console.log("⚙️ NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
+      
       // Usar NEXTAUTH_URL como base si está disponible
       const baseURL = process.env.NEXTAUTH_URL || getBaseUrl();
+      console.log("🎯 URL base a usar:", baseURL);
       
-      console.log("Using base URL:", baseURL);
+      // Si es una URL de error, analizar el error
+      if (url.includes('error=')) {
+        console.log("❌ URL contiene error:", url);
+        const errorParams = new URLSearchParams(url.split('?')[1]);
+        console.log("⚠️ Error details:", {
+          error: errorParams.get('error'),
+          errorDescription: errorParams.get('error_description')
+        });
+      }
       
       // Si la URL es del callback de Discord
       if (url.includes('/api/auth/callback/discord')) {
-        console.log("Redirecting to dashboard");
-        return `${baseURL}/dashboard`;
+        console.log("✅ URL es callback de Discord");
+        const finalUrl = `${baseURL}/dashboard`;
+        console.log("➡️ Redirigiendo a:", finalUrl);
+        return finalUrl;
       }
       
       // Si la URL es relativa
       if (url.startsWith('/')) {
-        console.log("Converting relative URL to absolute:", url);
-        return `${baseURL}${url}`;
+        console.log("📌 URL es relativa");
+        const finalUrl = `${baseURL}${url}`;
+        console.log("➡️ Convirtiendo a absoluta:", finalUrl);
+        return finalUrl;
       }
       
       // Si la URL es del mismo dominio
       if (url.startsWith(baseURL)) {
-        console.log("URL is from same domain");
+        console.log("🏠 URL es del mismo dominio");
+        console.log("➡️ Manteniendo URL original:", url);
         return url;
       }
       
-      console.log("Default redirect to dashboard");
-      return `${baseURL}/dashboard`;
+      console.log("🔄 Redirección por defecto al dashboard");
+      const defaultUrl = `${baseURL}/dashboard`;
+      console.log("➡️ URL final:", defaultUrl);
+      return defaultUrl;
     }
   },
   pages: {
