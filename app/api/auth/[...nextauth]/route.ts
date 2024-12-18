@@ -97,10 +97,8 @@ const handler = NextAuth({
       console.log("\n🔄 REDIRECT CALLBACK INICIADO 🔄");
       console.log("📍 URL recibida:", url);
       console.log("🌐 Base URL:", baseUrl);
-      console.log("⚙️ NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
       
-      // Usar NEXTAUTH_URL como base si está disponible
-      const baseURL = process.env.NEXTAUTH_URL || getBaseUrl();
+      const baseURL = process.env.NEXTAUTH_URL!;
       console.log("🎯 URL base a usar:", baseURL);
       
       // Si es una URL de error, analizar el error
@@ -111,35 +109,31 @@ const handler = NextAuth({
           error: errorParams.get('error'),
           errorDescription: errorParams.get('error_description')
         });
+        return `${baseURL}/auth/error`;
       }
       
-      // Si la URL es del callback de Discord
+      // Si es el callback de Discord, siempre ir al dashboard
       if (url.includes('/api/auth/callback/discord')) {
-        console.log("✅ URL es callback de Discord");
-        const finalUrl = `${baseURL}/dashboard`;
-        console.log("➡️ Redirigiendo a:", finalUrl);
-        return finalUrl;
+        console.log("✅ URL es callback de Discord, redirigiendo a dashboard");
+        return `${baseURL}/dashboard`;
       }
       
-      // Si la URL es relativa
+      // Si es una URL relativa
       if (url.startsWith('/')) {
-        console.log("📌 URL es relativa");
         const finalUrl = `${baseURL}${url}`;
-        console.log("➡️ Convirtiendo a absoluta:", finalUrl);
+        console.log("📌 Convirtiendo relativa a absoluta:", finalUrl);
         return finalUrl;
       }
       
       // Si la URL es del mismo dominio
       if (url.startsWith(baseURL)) {
-        console.log("🏠 URL es del mismo dominio");
-        console.log("➡️ Manteniendo URL original:", url);
+        console.log("🏠 Manteniendo URL del mismo dominio:", url);
         return url;
       }
       
+      // Por defecto, ir al dashboard
       console.log("🔄 Redirección por defecto al dashboard");
-      const defaultUrl = `${baseURL}/dashboard`;
-      console.log("➡️ URL final:", defaultUrl);
-      return defaultUrl;
+      return `${baseURL}/dashboard`;
     }
   },
   pages: {
