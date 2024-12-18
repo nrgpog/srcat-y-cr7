@@ -29,24 +29,18 @@ declare module "next-auth" {
   }
 }
 
-// URLs permitidas para redirección
-const allowedUrls = [
-  "http://localhost:3000",
-  "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev"
-];
-
 // Función para obtener la URL base según el entorno
 const getBaseUrl = () => {
-  // Si estamos en Replit
-  if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
-    return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
   }
-  // Si tenemos una URL definida en las variables de entorno
-  if (process.env.NEXTAUTH_URL) {
-    return process.env.NEXTAUTH_URL;
+  // Para Replit
+  if (typeof window === 'undefined') {
+    // Estamos en el servidor
+    return process.env.NEXTAUTH_URL || "http://localhost:3000";
   }
-  // Por defecto, usar localhost
-  return "http://localhost:3000";
+  // Estamos en el cliente
+  return window.location.origin;
 };
 
 const handler = NextAuth({
@@ -80,10 +74,10 @@ const handler = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Permitir redirecciones a cualquiera de las URLs permitidas
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (allowedUrls.some(allowedUrl => url.startsWith(allowedUrl))) return url;
-      return baseUrl;
+      const urlBase = getBaseUrl();
+      if (url.startsWith("/")) return `${urlBase}${url}`;
+      if (url.startsWith(urlBase)) return url;
+      return urlBase;
     },
   },
   pages: {
