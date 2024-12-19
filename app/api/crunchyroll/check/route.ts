@@ -100,7 +100,24 @@ export async function POST(req: Request) {
         },
         ...proxyConfig,
         timeout: 10000 // 10 segundos de timeout
+      }).catch(error => {
+        console.error('❌ Error en la petición de login:', error.message);
+        if (error.response?.data) {
+          console.error('Detalles del error:', error.response.data);
+        }
+        throw error;
       });
+
+      if (!loginResponse || !loginResponse.data) {
+        console.error('❌ No se recibió respuesta válida del servidor');
+        return NextResponse.json({
+          success: false,
+          error: {
+            message: 'No se recibió respuesta del servidor',
+            details: null
+          }
+        });
+      }
 
       console.log('✅ Respuesta de login recibida:', JSON.stringify(loginResponse.data));
 
