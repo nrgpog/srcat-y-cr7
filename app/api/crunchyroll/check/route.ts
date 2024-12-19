@@ -80,8 +80,10 @@ export async function POST(req: Request) {
         auth: {
           username: `zone-${ZONE_ID}-session-${sessionId}`,
           password: API_KEY
-        }
-      }
+        },
+        protocol: 'http'
+      },
+      httpsAgent: false
     };
 
     console.log('🌐 Configuración de proxy:', JSON.stringify(proxyConfig));
@@ -89,7 +91,7 @@ export async function POST(req: Request) {
     // Login request
     console.log('🔒 Intentando login...');
     try {
-      const loginResponse = await axios({
+      const requestConfig = {
         method: 'post',
         url: 'https://beta-api.crunchyroll.com/auth/v1/token',
         data: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&grant_type=password&scope=offline_access&device_id=${deviceId}&device_name=${deviceName}&device_type=${deviceName}`,
@@ -98,9 +100,17 @@ export async function POST(req: Request) {
           'authorization': 'Basic eHd4cXhxcmtueWZtZjZ0bHB1dGg6a1ZlQnVUa2JOTGpCbGRMdzhKQk5DTTRSZmlTR3VWa1I=',
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        ...proxyConfig,
-        timeout: 10000 // 10 segundos de timeout
-      }).catch(error => {
+        proxy: proxyConfig.proxy,
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: function (status: number) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      console.log('📡 Configuración de la petición:', JSON.stringify(requestConfig));
+
+      const loginResponse = await axios(requestConfig).catch(error => {
         console.error('❌ Error en la petición de login:', error.message);
         if (error.response?.data) {
           console.error('Detalles del error:', error.response.data);
@@ -143,8 +153,12 @@ export async function POST(req: Request) {
           'user-agent': 'Crunchyroll/3.63.1 Android/9 okhttp/4.12.0',
           'Authorization': `Bearer ${accessToken}`
         },
-        ...proxyConfig,
-        timeout: 10000
+        proxy: proxyConfig.proxy,
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: function (status: number) {
+          return status >= 200 && status < 500;
+        }
       });
 
       console.log('✅ Información de cuenta recibida:', JSON.stringify(accountInfo.data));
@@ -169,8 +183,12 @@ export async function POST(req: Request) {
             'user-agent': 'Crunchyroll/3.63.1 Android/9 okhttp/4.12.0',
             'Authorization': `Bearer ${accessToken}`
           },
-          ...proxyConfig,
-          timeout: 10000
+          proxy: proxyConfig.proxy,
+          timeout: 30000,
+          maxRedirects: 5,
+          validateStatus: function (status: number) {
+            return status >= 200 && status < 500;
+          }
         });
 
         console.log('✅ Información de suscripción recibida:', JSON.stringify(subscriptionInfo.data));
