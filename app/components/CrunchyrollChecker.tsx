@@ -73,16 +73,8 @@ export default function CrunchyrollChecker() {
         });
 
         console.log(`✅ Respuesta recibida para ${username}`);
-        if (!response.ok) {
-          throw new Error(`Error HTTP: ${response.status}`);
-        }
-
         const data = await response.json();
         console.log(`📄 Datos recibidos:`, data);
-
-        if (!data) {
-          throw new Error('No se recibieron datos del servidor');
-        }
 
         if (data.success && data.data) {
           console.log(`✨ Cuenta válida: ${username}`);

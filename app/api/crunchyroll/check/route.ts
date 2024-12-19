@@ -22,7 +22,7 @@ interface CrunchyrollResponse {
 
 function handleError(error: any): CrunchyrollResponse {
   console.log('❌ Error durante la verificación:', error);
-  console.log('Detalles del error:', error.response?.data);
+  console.log('Detalles del error:', error.response?.data || error.message);
 
   let errorMessage = 'Error al verificar la cuenta';
   const errorCode = error.response?.data?.code;
@@ -80,10 +80,8 @@ export async function POST(req: Request) {
         auth: {
           username: `zone-${ZONE_ID}-session-${sessionId}`,
           password: API_KEY
-        },
-        protocol: 'http'
-      },
-      httpsAgent: false
+        }
+      }
     };
 
     console.log('🌐 Configuración de proxy:', JSON.stringify(proxyConfig));
@@ -91,7 +89,7 @@ export async function POST(req: Request) {
     // Login request
     console.log('🔒 Intentando login...');
     try {
-      const requestConfig = {
+      const loginResponse = await axios({
         method: 'post',
         url: 'https://beta-api.crunchyroll.com/auth/v1/token',
         data: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&grant_type=password&scope=offline_access&device_id=${deviceId}&device_name=${deviceName}&device_type=${deviceName}`,
@@ -100,43 +98,18 @@ export async function POST(req: Request) {
           'authorization': 'Basic eHd4cXhxcmtueWZtZjZ0bHB1dGg6a1ZlQnVUa2JOTGpCbGRMdzhKQk5DTTRSZmlTR3VWa1I=',
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        proxy: proxyConfig.proxy,
-        timeout: 30000,
-        maxRedirects: 5,
-        validateStatus: function (status: number) {
-          return status >= 200 && status < 500;
-        }
-      };
-
-      console.log('📡 Configuración de la petición:', JSON.stringify(requestConfig));
-
-      const loginResponse = await axios(requestConfig).catch(error => {
-        console.error('❌ Error en la petición de login:', error.message);
-        if (error.response?.data) {
-          console.error('Detalles del error:', error.response.data);
-        }
-        throw error;
+        ...proxyConfig,
+        timeout: 10000 // 10 segundos de timeout
       });
-
-      if (!loginResponse || !loginResponse.data) {
-        console.error('❌ No se recibió respuesta válida del servidor');
-        return NextResponse.json({
-          success: false,
-          error: {
-            message: 'No se recibió respuesta del servidor',
-            details: null
-          }
-        });
-      }
 
       console.log('✅ Respuesta de login recibida:', JSON.stringify(loginResponse.data));
 
-      if (!loginResponse.data.access_token) {
+      if (!loginResponse.data || !loginResponse.data.access_token) {
         return NextResponse.json({
           success: false,
           error: {
             message: 'No se pudo obtener el token de acceso',
-            details: loginResponse.data
+            details: loginResponse.data || 'Data no disponible'
           }
         });
       }
@@ -153,12 +126,8 @@ export async function POST(req: Request) {
           'user-agent': 'Crunchyroll/3.63.1 Android/9 okhttp/4.12.0',
           'Authorization': `Bearer ${accessToken}`
         },
-        proxy: proxyConfig.proxy,
-        timeout: 30000,
-        maxRedirects: 5,
-        validateStatus: function (status: number) {
-          return status >= 200 && status < 500;
-        }
+        ...proxyConfig,
+        timeout: 10000
       });
 
       console.log('✅ Información de cuenta recibida:', JSON.stringify(accountInfo.data));
@@ -183,12 +152,8 @@ export async function POST(req: Request) {
             'user-agent': 'Crunchyroll/3.63.1 Android/9 okhttp/4.12.0',
             'Authorization': `Bearer ${accessToken}`
           },
-          proxy: proxyConfig.proxy,
-          timeout: 30000,
-          maxRedirects: 5,
-          validateStatus: function (status: number) {
-            return status >= 200 && status < 500;
-          }
+          ...proxyConfig,
+          timeout: 10000
         });
 
         console.log('✅ Información de suscripción recibida:', JSON.stringify(subscriptionInfo.data));
