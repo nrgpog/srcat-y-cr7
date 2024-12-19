@@ -1,50 +1,12 @@
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
-import { DefaultSession } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from 'bcryptjs';
+import dbConnect from '../../../utils/mongodb';
+import User from '../../../models/User';
 
-// Definir la interfaz para el perfil de Discord
-interface DiscordProfile {
-  id: string;
-  email: string;
-  username: string;
-  avatar: string;
-  discriminator: string;
-}
-
-// Extender el tipo JWT
-declare module "next-auth/jwt" {
-  interface JWT {
-    accessToken?: string;
-    discordId?: string;
-  }
-}
-
-// Extender el tipo Session
-declare module "next-auth" {
-  interface Session {
-    user: {
-      discordId?: string;
-      accessToken?: string;
-    } & DefaultSession["user"];
-  }
-}
-
-// Función para determinar si estamos en Replit
-const isReplit = () => {
-  return process.env.REPL_ID && process.env.REPL_OWNER;
-};
-
-// Función para obtener la URL base según el entorno
-const getBaseUrl = () => {
-  // Si estamos en Replit
-  if (isReplit()) {
-    return "https://23662baa-de51-4bed-8f65-0c81ffb0367c-00-18dtigdrwmpdq.worf.replit.dev";
-  }
-  // En desarrollo local
-  return "http://localhost:3000";
-};
-
-const handler = NextAuth({
+export const authOptions = {
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
@@ -55,62 +17,68 @@ const handler = NextAuth({
         },
       },
     }),
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        try {
+          await dbConnect();
+
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error('Please enter an email and password');
+          }
+
+          const user = await User.findOne({ email: credentials.email });
+
+          if (!user) {
+            throw new Error('No user found with this email');
+          }
+
+          const isValid = await bcrypt.compare(credentials.password, user.password);
+
+          if (!isValid) {
+            throw new Error('Invalid password');
+          }
+
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
+          return null;
+        }
+      }
+    })
   ],
+  session: {
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      return true;
-    },
-    async jwt({ token, account, profile }) {
-      if (account && profile) {
-        token.accessToken = account.access_token;
-        token.discordId = profile?.id;
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.id = user.id;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (session.user) {
-        (session.user as any).discordId = token.discordId;
-        (session.user as any).accessToken = token.accessToken;
+        session.user.id = token.id;
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      const currentBaseUrl = getBaseUrl();
-      
-      // Manejar la redirección después del callback de Discord
-      if (url.includes('/api/auth/callback/discord')) {
-        return currentBaseUrl;
-      }
-      
-      // Si la URL es la página de inicio de sesión y el usuario ya está autenticado
-      if (url.includes('/auth/signin')) {
-        return currentBaseUrl;
-      }
-      
-      // Si la URL comienza con una barra, añadirla a la URL base actual
-      if (url.startsWith("/")) {
-        return `${currentBaseUrl}${url}`;
-      }
-      
-      // Si la URL comienza con la URL base actual, permitirla
-      if (url.startsWith(currentBaseUrl)) {
-        return url;
-      }
-      
-      // Por defecto, redirigir a la página principal
-      return currentBaseUrl;
-    },
   },
-  pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 días
-  },
-  debug: process.env.NODE_ENV === "development",
-});
+  debug: process.env.NODE_ENV === 'development',
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
