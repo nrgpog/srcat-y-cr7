@@ -1,9 +1,12 @@
 'use client';
-import { useState } from 'react';
-import { signIn } from "next-auth/react";
-import { FiZap, FiMail, FiLock, FiUser } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { signIn, useSession } from "next-auth/react";
+import { FiZap, FiMail, FiLock, FiUser, FiAlertCircle } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
 
 export default function SignIn() {
+  const router = useRouter();
+  const { data: session, status, update } = useSession();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,29 +14,56 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (status === 'authenticated') {
+      console.log('✅ Usuario autenticado, redirigiendo...', session);
+      router.push('/');
+    }
+  }, [status, session, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="animate-spin text-yellow-400">
+          <FiZap className="w-8 h-8" />
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    if (isLogin) {
-      // Login
-      const result = await signIn('credentials', {
-        redirect: false,
-        email,
-        password,
-      });
+    try {
+      if (isLogin) {
+        console.log('🔄 Iniciando proceso de login...');
+        const result = await signIn('credentials', {
+          redirect: false,
+          email,
+          password,
+          callbackUrl: '/'
+        });
 
-      if (result?.error) {
-        setError('Credenciales inválidas');
-        setLoading(false);
-        return;
-      }
+        console.log('📬 Resultado del login:', result);
 
-      window.location.href = '/';
-    } else {
-      // Register
-      try {
+        if (result?.error) {
+          console.log('❌ Error en login:', result.error);
+          setError('Credenciales inválidas');
+          setLoading(false);
+          return;
+        }
+
+        console.log('✅ Login exitoso, actualizando sesión...');
+        await update();
+        if (result?.url) {
+          router.push(result.url);
+        } else {
+          router.push('/');
+        }
+      } else {
+        console.log('🔄 Iniciando proceso de registro...');
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: {
@@ -46,30 +76,47 @@ export default function SignIn() {
           }),
         });
 
-        if (res.ok) {
-          // Auto login after registration
-          const result = await signIn('credentials', {
-            redirect: false,
-            email,
-            password,
-          });
+        const data = await res.json();
+        console.log('📬 Respuesta del servidor:', data);
 
-          if (result?.error) {
-            setError('Error al iniciar sesión automáticamente');
-            setLoading(false);
-            return;
-          }
-
-          window.location.href = '/';
-        } else {
-          const data = await res.json();
+        if (!res.ok) {
+          console.log('❌ Error en registro:', data.error);
           setError(data.error || 'Error al registrar usuario');
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        setError('Error al conectar con el servidor');
+
+        console.log('✅ Registro exitoso, intentando login automático...');
+        const result = await signIn('credentials', {
+          redirect: false,
+          email,
+          password,
+          callbackUrl: '/'
+        });
+
+        console.log('📬 Resultado del login automático:', result);
+
+        if (result?.error) {
+          console.log('❌ Error en login automático:', result.error);
+          setError('Error al iniciar sesión automáticamente');
+          setLoading(false);
+          return;
+        }
+
+        console.log('✅ Login automático exitoso, actualizando sesión...');
+        await update();
+        if (result?.url) {
+          router.push(result.url);
+        } else {
+          router.push('/');
+        }
       }
+    } catch (err) {
+      console.error('❌ Error inesperado:', err);
+      setError('Error al conectar con el servidor');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -123,7 +170,7 @@ export default function SignIn() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-[#1A1A1A] text-white rounded-lg py-2 px-10 border border-[#333333] focus:border-yellow-400/50 focus:outline-none transition-colors"
-                  placeholder="••••••••"
+                  placeholder="•••••••"
                   required
                 />
               </div>

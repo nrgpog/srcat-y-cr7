@@ -6,15 +6,15 @@ import Image from 'next/image';
 
 interface LayoutProps {
   children?: React.ReactNode;
-  onToolChange?: (tool: 'checker' | 'gen' | 'fansly' | 'steam' | 'disney') => void;
+  onToolChange?: (tool: 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll') => void;
 }
 
 export default function Layout({ children, onToolChange }: LayoutProps) {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [currentTool, setCurrentTool] = useState<'checker' | 'gen' | 'fansly' | 'steam' | 'disney'>('checker');
+  const [currentTool, setCurrentTool] = useState<'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll'>('checker');
 
-  const handleToolChange = (tool: 'checker' | 'gen' | 'fansly' | 'steam' | 'disney') => {
+  const handleToolChange = (tool: 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll') => {
     setCurrentTool(tool);
     setIsMenuOpen(false);
     if (onToolChange) {
@@ -179,6 +179,15 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
           >
             <FiPlay className="w-5 h-5 text-yellow-400" />
             <span>Disney+ Checker</span>
+          </button>
+          <button
+            onClick={() => handleToolChange('crunchyroll')}
+            className={`w-full p-3 rounded-lg flex items-center gap-3 ${
+              currentTool === 'crunchyroll' ? 'bg-[#1A1A1A]' : 'hover:bg-[#1A1A1A]'
+            } transition-colors text-white`}
+          >
+            <FiPlay className="w-5 h-5 text-yellow-400" />
+            <span>Crunchyroll Checker</span>
           </button>
         </div>
       </div>

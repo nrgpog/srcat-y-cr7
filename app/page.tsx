@@ -8,10 +8,11 @@ import CCGen from './components/CCGen';
 import FanslyChecker from './components/FanslyChecker';
 import SteamChecker from './components/SteamChecker';
 import DisneyChecker from './components/DisneyChecker';
+import CrunchyrollChecker from './components/CrunchyrollChecker';
 
 export default function Home() {
   const { data: session, status } = useSession();
-  const [currentTool, setCurrentTool] = useState<'checker' | 'gen' | 'fansly' | 'steam' | 'disney'>('checker');
+  const [currentTool, setCurrentTool] = useState<'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll'>('checker');
   const router = useRouter();
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function Home() {
       {currentTool === 'fansly' && <FanslyChecker />}
       {currentTool === 'steam' && <SteamChecker />}
       {currentTool === 'disney' && <DisneyChecker />}
+      {currentTool === 'crunchyroll' && <CrunchyrollChecker />}
     </Layout>
   );
 }
