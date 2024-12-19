@@ -1,20 +1,20 @@
 'use client';
 import { useState } from 'react';
 import { useSession, signIn, signOut } from "next-auth/react";
-import { FiMenu, FiX, FiCreditCard, FiZap, FiLogOut } from 'react-icons/fi';
+import { FiMenu, FiX, FiCreditCard, FiZap, FiLogOut, FiUser, FiPlay } from 'react-icons/fi';
 import Image from 'next/image';
 
 interface LayoutProps {
   children?: React.ReactNode;
-  onToolChange?: (tool: 'checker' | 'gen') => void;
+  onToolChange?: (tool: 'checker' | 'gen' | 'fansly' | 'steam' | 'disney') => void;
 }
 
 export default function Layout({ children, onToolChange }: LayoutProps) {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [currentTool, setCurrentTool] = useState<'checker' | 'gen'>('checker');
+  const [currentTool, setCurrentTool] = useState<'checker' | 'gen' | 'fansly' | 'steam' | 'disney'>('checker');
 
-  const handleToolChange = (tool: 'checker' | 'gen') => {
+  const handleToolChange = (tool: 'checker' | 'gen' | 'fansly' | 'steam' | 'disney') => {
     setCurrentTool(tool);
     setIsMenuOpen(false);
     if (onToolChange) {
@@ -152,6 +152,33 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
           >
             <FiCreditCard className="w-5 h-5 text-yellow-400" />
             <span>Card Generator</span>
+          </button>
+          <button
+            onClick={() => handleToolChange('fansly')}
+            className={`w-full p-3 rounded-lg flex items-center gap-3 ${
+              currentTool === 'fansly' ? 'bg-[#1A1A1A]' : 'hover:bg-[#1A1A1A]'
+            } transition-colors text-white`}
+          >
+            <FiUser className="w-5 h-5 text-yellow-400" />
+            <span>Fansly Checker</span>
+          </button>
+          <button
+            onClick={() => handleToolChange('steam')}
+            className={`w-full p-3 rounded-lg flex items-center gap-3 ${
+              currentTool === 'steam' ? 'bg-[#1A1A1A]' : 'hover:bg-[#1A1A1A]'
+            } transition-colors text-white`}
+          >
+            <FiUser className="w-5 h-5 text-yellow-400" />
+            <span>Steam Checker</span>
+          </button>
+          <button
+            onClick={() => handleToolChange('disney')}
+            className={`w-full p-3 rounded-lg flex items-center gap-3 ${
+              currentTool === 'disney' ? 'bg-[#1A1A1A]' : 'hover:bg-[#1A1A1A]'
+            } transition-colors text-white`}
+          >
+            <FiPlay className="w-5 h-5 text-yellow-400" />
+            <span>Disney+ Checker</span>
           </button>
         </div>
       </div>
