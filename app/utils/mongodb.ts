@@ -12,10 +12,11 @@ declare global {
   };
 }
 
-const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGO_URL = process.env.MONGO_URL;
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+if (!MONGO_URL) {
+  console.error('❌ Error: No se pudo encontrar MONGO_URL en las variables de entorno');
+  throw new Error('No se pudo encontrar MONGO_URL en las variables de entorno');
 }
 
 let cached = global.mongoose;
@@ -37,10 +38,10 @@ async function dbConnect() {
       const opts = {
         bufferCommands: false,
         maxPoolSize: 10,
-        serverSelectionTimeoutMS: 30000, // Aumentado a 30 segundos
-        socketTimeoutMS: 60000, // Aumentado a 60 segundos
-        family: 4, // Forzar IPv4
-        connectTimeoutMS: 30000, // Timeout de conexión
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 60000,
+        family: 4,
+        connectTimeoutMS: 30000,
         retryWrites: true,
         retryReads: true,
       };
@@ -48,7 +49,7 @@ async function dbConnect() {
       console.log('🔌 Estableciendo nueva conexión a MongoDB...');
       console.log('📡 Intentando resolver DNS...');
       
-      cached.promise = mongoose.connect(MONGODB_URI, opts)
+      cached.promise = mongoose.connect(MONGO_URL, opts)
         .then((mongoose) => {
           console.log('✅ Conexión a MongoDB establecida exitosamente');
           return mongoose;

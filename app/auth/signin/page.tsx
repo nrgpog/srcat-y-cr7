@@ -17,7 +17,7 @@ export default function SignIn() {
   useEffect(() => {
     if (status === 'authenticated') {
       console.log('✅ Usuario autenticado, redirigiendo...', session);
-      router.push('/');
+      router.replace('/');
     }
   }, [status, session, router]);
 
@@ -57,11 +57,7 @@ export default function SignIn() {
 
         console.log('✅ Login exitoso, actualizando sesión...');
         await update();
-        if (result?.url) {
-          router.push(result.url);
-        } else {
-          router.push('/');
-        }
+        router.replace('/');
       } else {
         console.log('🔄 Iniciando proceso de registro...');
         const res = await fetch('/api/auth/register', {
@@ -105,11 +101,7 @@ export default function SignIn() {
 
         console.log('✅ Login automático exitoso, actualizando sesión...');
         await update();
-        if (result?.url) {
-          router.push(result.url);
-        } else {
-          router.push('/');
-        }
+        router.replace('/');
       }
     } catch (err) {
       console.error('❌ Error inesperado:', err);

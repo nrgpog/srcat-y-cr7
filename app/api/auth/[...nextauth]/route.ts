@@ -77,24 +77,34 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      console.log('🔄 Redirigiendo...', { url, baseUrl });
+      console.log('🔄 Redirigiendo...', { url, baseUrl, env: process.env.NODE_ENV });
       
-      // Reemplazar localhost por la URL de Replit si es necesario
-      if (url.includes('localhost:3000')) {
-        url = url.replace('http://localhost:3000', baseUrl);
-      }
+      // Usar NEXTAUTH_URL si está definido, de lo contrario usar baseUrl
+      const effectiveBaseUrl = process.env.NEXTAUTH_URL || baseUrl;
+      console.log('📍 URL base efectiva:', effectiveBaseUrl);
       
-      // Si la URL es relativa, la convertimos a absoluta
+      // Si la URL es relativa, convertirla a absoluta
       if (url.startsWith('/')) {
-        return `${baseUrl}${url}`;
+        return `${effectiveBaseUrl}${url}`;
       }
-      // Si la URL ya es absoluta y pertenece al mismo dominio o es la URL de Replit, la permitimos
-      else if (url.startsWith(baseUrl) || url.includes('.replit.dev')) {
+      
+      // Si la URL es del mismo dominio que la URL base efectiva, permitirla
+      if (url.startsWith(effectiveBaseUrl)) {
         return url;
       }
       
-      // Por defecto, redirigimos a la página principal
-      return baseUrl;
+      // Si estamos en desarrollo y la URL es localhost, permitirla
+      if (process.env.NODE_ENV === 'development' && url.includes('localhost')) {
+        return url;
+      }
+      
+      // Si estamos en producción y la URL es de Replit, permitirla
+      if (process.env.NODE_ENV === 'production' && url.includes('.replit.dev')) {
+        return url;
+      }
+      
+      // Por defecto, redirigir a la página principal
+      return effectiveBaseUrl;
     }
   },
   session: {
