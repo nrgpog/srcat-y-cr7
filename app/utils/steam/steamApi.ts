@@ -37,6 +37,38 @@ interface RequestResponse {
   };
 }
 
+interface AccountInfoResponse {
+  success: boolean;
+  data?: {
+    status: string;
+    balance: string;
+    games?: {
+      total: number;
+      list: string[];
+    };
+  };
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+interface CheckAccountResponse {
+  success: boolean;
+  details?: {
+    username: string;
+    password: string;
+    status: string;
+    balance: string;
+    games?: {
+      total: number;
+      list: string[];
+    };
+  };
+  error?: string;
+}
+
 export class SteamAPI {
   private baseUrls: Record<string, string>;
   private headers: Record<string, string>;
@@ -258,7 +290,7 @@ export class SteamAPI {
     }
   }
 
-  async getAccountInfo() {
+  async getAccountInfo(): Promise<AccountInfoResponse> {
     if (!this.authData) {
       return {
         success: false,
@@ -306,7 +338,14 @@ export class SteamAPI {
       };
 
     } catch (error) {
-      return this.handleError('Error obteniendo información de cuenta', error);
+      return {
+        success: false,
+        error: {
+          code: 'ERROR',
+          message: error instanceof Error ? error.message : 'Error desconocido',
+          details: error
+        }
+      };
     }
   }
 
@@ -386,5 +425,58 @@ export class SteamAPI {
         details: error.response?.data
       }
     };
+  }
+
+  async checkAccount(username: string, password: string): Promise<CheckAccountResponse> {
+    try {
+      console.log('🔄 Verificando cuenta Steam...');
+      const loginResult = await this.login(username, password);
+
+      if (!loginResult.success) {
+        return {
+          success: false,
+          error: loginResult.error?.message || 'Error de inicio de sesión'
+        };
+      }
+
+      if (loginResult.error?.code === '2FA_REQUIRED') {
+        return {
+          success: true,
+          details: {
+            username,
+            password,
+            status: '2FA_REQUIRED',
+            balance: 'N/A'
+          }
+        };
+      }
+
+      const accountInfo = await this.getAccountInfo();
+      
+      if (!accountInfo.success || !accountInfo.data) {
+        return {
+          success: false,
+          error: accountInfo.error?.message || 'Error al obtener información de la cuenta'
+        };
+      }
+
+      return {
+        success: true,
+        details: {
+          username,
+          password,
+          status: accountInfo.data.status,
+          balance: accountInfo.data.balance,
+          games: accountInfo.data.games
+        }
+      };
+
+    } catch (error: any) {
+      console.error('❌ Error verificando cuenta:', error);
+      return {
+        success: false,
+        error: error.message || 'Error desconocido al verificar la cuenta'
+      };
+    }
   }
 } 

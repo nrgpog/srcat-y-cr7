@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
 
 interface FanslyCheckerFormProps {
   onSubmit: (accounts: string[]) => void;

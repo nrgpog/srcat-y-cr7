@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiZap, FiCheck, FiX, FiAlertCircle, FiCopy, FiSettings, FiGlobe, FiRefreshCw } from 'react-icons/fi';
+import { encrypt, decrypt } from '../utils/encryption';
 
 interface CheckResult {
   account: string;
@@ -13,6 +14,12 @@ interface ProxyConfig {
   enabled: boolean;
   list: string[];
   current: number;
+}
+
+declare global {
+  interface Window {
+    fanslyCheckerEventSource?: EventSource;
+  }
 }
 
 export default function FanslyChecker() {
@@ -50,7 +57,7 @@ export default function FanslyChecker() {
     }));
   };
 
-  const handleCheck = async () => {
+  const checkAccounts = async () => {
     if (!accounts.trim()) {
       setError('Por favor, ingresa al menos una cuenta para verificar');
       return;
@@ -67,23 +74,36 @@ export default function FanslyChecker() {
 
     const accountList = accounts
       .split('\n')
-      .map(acc => acc.trim())
-      .filter(Boolean);
+      .map(account => account.trim())
+      .filter(account => account && account.includes(':'));
+
+    if (accountList.length === 0) {
+      setError('No se encontraron cuentas válidas para verificar');
+      setIsChecking(false);
+      return;
+    }
+
     setProgress({ checked: 0, total: accountList.length });
 
     try {
+      const dataToEncrypt = JSON.stringify(accountList);
+      console.log('📦 Datos a encriptar:', dataToEncrypt);
+      
+      let encryptedData: string;
+      try {
+        encryptedData = encrypt(dataToEncrypt);
+        console.log('🔒 Datos encriptados:', encryptedData);
+      } catch (encryptError) {
+        console.error('❌ Error al encriptar:', encryptError);
+        throw new Error('Error al encriptar los datos');
+      }
+
       const response = await fetch('/api/fansly/check', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain',
         },
-        body: JSON.stringify({ 
-          accounts: accountList,
-          proxy: proxyConfig.enabled ? {
-            list: proxyConfig.list,
-            current: proxyConfig.current
-          } : null
-        })
+        body: encryptedData
       });
 
       if (!response.ok) throw new Error('Error al procesar la solicitud');
@@ -103,13 +123,19 @@ export default function FanslyChecker() {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const encryptedResult = line.slice(6);
+              console.log('📦 Resultado encriptado recibido:', encryptedResult);
+              
+              const decryptedResult = decrypt(encryptedResult);
+              console.log('🔓 Resultado desencriptado:', decryptedResult);
+              
+              const data = JSON.parse(decryptedResult);
               if (data.result) {
                 setResults(prev => [...prev, data.result]);
                 setProgress(prev => ({ ...prev, checked: prev.checked + 1 }));
               }
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              console.error('Error procesando resultado:', e);
             }
           }
         }
@@ -269,7 +295,7 @@ export default function FanslyChecker() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={handleCheck}
+          onClick={checkAccounts}
           disabled={isChecking}
           className={`w-full py-3 px-4 rounded-lg font-medium transition-all 
             flex items-center justify-center gap-2 ${

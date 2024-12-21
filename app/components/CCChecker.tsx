@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { FiCreditCard, FiTrash2, FiCopy, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { encrypt, decrypt } from '../utils/encryption';
 
 interface CardResult {
   card: string;
@@ -35,55 +36,107 @@ export default function CCChecker() {
   };
 
   const checkCards = async () => {
-    const cards = cardsInput
-      .split('\n')
-      .map(card => formatCard(card))
-      .filter(card => card && isValidCardFormat(card));
+    let cards: string[] = [];
+    
+    try {
+      cards = cardsInput
+        .split('\n')
+        .map(card => formatCard(card))
+        .filter(card => card && isValidCardFormat(card));
 
-    if (cards.length === 0) {
-      setShowError('Por favor ingresa tarjetas válidas');
-      setTimeout(() => setShowError(''), 3000);
-      return;
-    }
-
-    if (cards.length > 20) {
-      setShowError('Máximo 20 tarjetas permitidas');
-      setTimeout(() => setShowError(''), 3000);
-      return;
-    }
-
-    setIsChecking(true);
-    setResults([]);
-    setTotalChecked(0);
-
-    for (let i = 0; i < cards.length; i++) {
-      try {
-        const response = await fetch('/api/check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ card: cards[i] }),
-        });
-
-        if (!response.ok) throw new Error('Network response was not ok');
-
-        const data = await response.json();
-        setResults(prev => [...prev, { 
-          card: cards[i], 
-          status: data.status,
-          details: data.details ? cleanResponse(data.details) : undefined,
-          error: data.error
-        }]);
-        setTotalChecked(i + 1);
-      } catch (error) {
-        setResults(prev => [...prev, { 
-          card: cards[i], 
-          status: 'Dead',
-          error: 'Error al verificar la tarjeta'
-        }]);
+      if (cards.length === 0) {
+        setShowError('Por favor ingresa tarjetas válidas');
+        setTimeout(() => setShowError(''), 3000);
+        return;
       }
-      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (cards.length > 20) {
+        setShowError('Máximo 20 tarjetas permitidas');
+        setTimeout(() => setShowError(''), 3000);
+        return;
+      }
+
+      setIsChecking(true);
+      setResults([]);
+      setTotalChecked(0);
+
+      for (let i = 0; i < cards.length; i++) {
+        try {
+          console.log('🔄 Procesando tarjeta:', cards[i]);
+          
+          // Validar formato de la tarjeta
+          if (!isValidCardFormat(cards[i])) {
+            throw new Error('Formato de tarjeta inválido');
+          }
+          
+          const dataToEncrypt = JSON.stringify({ card: cards[i] });
+          console.log('📦 Datos a encriptar:', dataToEncrypt);
+          
+          let encryptedData: string;
+          try {
+            encryptedData = encrypt(dataToEncrypt);
+            console.log('🔒 Datos encriptados:', encryptedData);
+          } catch (encryptError) {
+            console.error('❌ Error al encriptar:', encryptError);
+            throw new Error('Error al encriptar los datos');
+          }
+          
+          const response = await fetch('/api/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: encryptedData,
+          });
+
+          console.log('📡 Estado de respuesta:', response.status);
+          
+          const responseText = await response.text();
+          console.log('📦 Respuesta recibida:', responseText);
+          
+          if (!response.ok) {
+            console.error('❌ Error en respuesta:', responseText);
+            throw new Error('Error en la respuesta del servidor');
+          }
+
+          let decryptedData: string;
+          try {
+            decryptedData = decrypt(responseText);
+            console.log('🔓 Datos desencriptados:', decryptedData);
+          } catch (decryptError) {
+            console.error('❌ Error al desencriptar:', decryptError);
+            throw new Error('Error al desencriptar la respuesta');
+          }
+          
+          const data = JSON.parse(decryptedData);
+          console.log('📄 Datos finales:', data);
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          setResults(prev => [...prev, { 
+            card: cards[i], 
+            status: data.status,
+            details: data.details ? cleanResponse(data.details) : undefined,
+            error: data.error
+          }]);
+          setTotalChecked(i + 1);
+        } catch (error) {
+          console.error('❌ Error al procesar tarjeta:', error);
+          setResults(prev => [...prev, { 
+            card: cards[i], 
+            status: 'Dead',
+            error: error instanceof Error ? error.message : 'Error al verificar la tarjeta'
+          }]);
+        }
+        // Esperar entre cada solicitud para evitar sobrecarga
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+    } catch (error) {
+      console.error('❌ Error general:', error);
+      setShowError(error instanceof Error ? error.message : 'Error al procesar las tarjetas');
+    } finally {
+      setIsChecking(false);
     }
-    setIsChecking(false);
   };
 
   const copyToClipboard = (text: string, index: number) => {

@@ -2,16 +2,18 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiZap,
+  FiPlay, 
+  FiTrash2, 
+  FiCopy, 
   FiCheck, 
   FiX, 
-  FiAlertCircle, 
-  FiCopy,
+  FiAlertCircle,
   FiSettings,
   FiGlobe,
   FiRefreshCw,
-  FiMonitor
+  FiDownload
 } from 'react-icons/fi';
+import { encrypt, decrypt } from '../utils/encryption';
 
 interface CheckResult {
   account: string;
@@ -42,7 +44,7 @@ declare global {
 }
 
 export default function SteamChecker() {
-  const [accounts, setAccounts] = useState('');
+  const [accountsInput, setAccountsInput] = useState<string>('');
   const [results, setResults] = useState<CheckResult[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +79,8 @@ export default function SteamChecker() {
     setShowSettings(false);
   };
 
-  const handleCheck = async () => {
-    if (!accounts.trim()) {
+  const checkAccounts = async () => {
+    if (!accountsInput.trim()) {
       setError('Por favor, ingresa al menos una cuenta para verificar');
       return;
     }
@@ -92,29 +94,39 @@ export default function SteamChecker() {
     setResults([]);
     setError(null);
 
-    const accountList = accounts
+    const accountsList = accountsInput
       .split('\n')
-      .map(acc => acc.trim())
-      .filter(Boolean);
-    setProgress({ checked: 0, total: accountList.length });
+      .map((account: string) => account.trim())
+      .filter((account: string) => account && account.includes(':'));
+
+    if (accountsList.length === 0) {
+      setError('No se encontraron cuentas válidas para verificar');
+      setIsChecking(false);
+      return;
+    }
+
+    setProgress({ checked: 0, total: accountsList.length });
 
     try {
-      if (window.steamCheckerEventSource) {
-        window.steamCheckerEventSource.close();
+      // Encriptar los datos antes de enviarlos
+      const dataToEncrypt = JSON.stringify(accountsList);
+      console.log('📦 Datos a encriptar:', dataToEncrypt);
+      
+      let encryptedData: string;
+      try {
+        encryptedData = encrypt(dataToEncrypt);
+        console.log('🔒 Datos encriptados:', encryptedData);
+      } catch (encryptError) {
+        console.error('❌ Error al encriptar:', encryptError);
+        throw new Error('Error al encriptar los datos');
       }
 
       const response = await fetch('/api/steam/check', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain',
         },
-        body: JSON.stringify({ 
-          accounts: accountList,
-          proxy: proxyConfig.enabled ? {
-            list: proxyConfig.list,
-            current: proxyConfig.current
-          } : null
-        })
+        body: encryptedData
       });
 
       if (!response.ok) throw new Error('Error al procesar la solicitud');
@@ -134,13 +146,19 @@ export default function SteamChecker() {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const encryptedResult = line.slice(6);
+              console.log('📦 Resultado encriptado recibido:', encryptedResult);
+              
+              const decryptedResult = decrypt(encryptedResult);
+              console.log('🔓 Resultado desencriptado:', decryptedResult);
+              
+              const data = JSON.parse(decryptedResult);
               if (data.result) {
                 setResults(prev => [...prev, data.result]);
                 setProgress(prev => ({ ...prev, checked: prev.checked + 1 }));
               }
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              console.error('Error procesando resultado:', e);
             }
           }
         }
@@ -209,7 +227,7 @@ export default function SteamChecker() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <FiMonitor className="text-yellow-400" />
+            <FiDownload className="text-yellow-400" />
             Steam Checker
           </h2>
           <div className="flex items-center gap-4">
@@ -303,8 +321,8 @@ export default function SteamChecker() {
 
         {/* Input de Cuentas */}
         <textarea
-          value={accounts}
-          onChange={(e) => setAccounts(e.target.value)}
+          value={accountsInput}
+          onChange={(e) => setAccountsInput(e.target.value)}
           placeholder="Ingresa las cuentas (una por línea)&#10;Formato: usuario:contraseña&#10;Ejemplo: usuario1:contraseña1"
           className="w-full h-40 bg-black/40 text-white rounded-lg p-4 mb-4 border border-gray-700 
             focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none 
@@ -332,7 +350,7 @@ export default function SteamChecker() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={handleCheck}
+          onClick={checkAccounts}
           disabled={isChecking}
           className={`w-full py-3 px-4 rounded-lg font-medium transition-all 
             flex items-center justify-center gap-2 ${
@@ -341,7 +359,7 @@ export default function SteamChecker() {
               : 'bg-gradient-to-r from-yellow-400 to-orange-500 hover:opacity-90'
           }`}
         >
-          <FiZap className={`w-4 h-4 ${isChecking ? 'animate-pulse' : ''}`} />
+          <FiPlay className={`w-4 h-4 ${isChecking ? 'animate-pulse' : ''}`} />
           {isChecking ? 'Verificando...' : 'Verificar Cuentas'}
         </motion.button>
 

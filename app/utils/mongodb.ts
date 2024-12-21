@@ -15,67 +15,60 @@ declare global {
 const MONGO_URL = process.env.MONGO_URL;
 
 if (!MONGO_URL) {
-  console.error('❌ Error: No se pudo encontrar MONGO_URL en las variables de entorno');
-  throw new Error('No se pudo encontrar MONGO_URL en las variables de entorno');
+  throw new Error(
+    'Por favor define la variable de entorno MONGO_URL dentro de .env.local'
+  );
 }
 
-let cached = global.mongoose;
+interface CachedConnection {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
+
+let cached: CachedConnection = (global as any).mongoose;
 
 if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+  cached = (global as any).mongoose = { conn: null, promise: null };
 }
 
 async function dbConnect() {
-  try {
-    console.log('🔄 Iniciando conexión a MongoDB...');
-    
-    if (cached.conn) {
-      console.log('✅ Usando conexión existente a MongoDB');
-      return cached.conn;
-    }
-
-    if (!cached.promise) {
-      const opts = {
-        bufferCommands: false,
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 30000,
-        socketTimeoutMS: 60000,
-        family: 4,
-        connectTimeoutMS: 30000,
-        retryWrites: true,
-        retryReads: true,
-      };
-
-      console.log('🔌 Estableciendo nueva conexión a MongoDB...');
-      console.log('📡 Intentando resolver DNS...');
-      
-      cached.promise = mongoose.connect(MONGO_URL, opts)
-        .then((mongoose) => {
-          console.log('✅ Conexión a MongoDB establecida exitosamente');
-          return mongoose;
-        })
-        .catch((error) => {
-          console.error('❌ Error al conectar:', error);
-          if (error.name === 'MongooseServerSelectionError') {
-            throw new Error('No se pudo conectar al servidor de MongoDB. Por favor, verifica tu conexión a internet y la URL de conexión.');
-          }
-          throw error;
-        });
-    }
-
-    try {
-      cached.conn = await cached.promise;
-    } catch (e) {
-      console.error('❌ Error al conectar con MongoDB:', e);
-      cached.promise = null;
-      throw e;
-    }
-
+  if (cached.conn) {
+    console.log('🔄 Usando conexión a MongoDB existente');
     return cached.conn;
-  } catch (error) {
-    console.error('❌ Error en dbConnect:', error);
-    throw new Error(`Error al conectar con MongoDB: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    };
+
+    console.log('📡 Intentando resolver DNS...');
+
+    if (typeof MONGO_URL !== 'string') {
+      throw new Error('MONGO_URL debe ser una cadena de texto válida');
+    }
+
+    cached.promise = mongoose.connect(MONGO_URL, opts)
+      .then((mongoose) => {
+        console.log('✅ Conexión a MongoDB establecida exitosamente');
+        return mongoose;
+      })
+      .catch((error) => {
+        console.error('❌ Error al conectar con MongoDB:', error);
+        throw error;
+      });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
 }
 
 mongoose.connection.on('connected', () => {

@@ -1,40 +1,60 @@
 'use client';
-import { FiAlertTriangle } from 'react-icons/fi';
-import { useSearchParams } from 'next/navigation';
 
-export default function ErrorPage() {
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { FiAlertCircle } from 'react-icons/fi';
+
+function ErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
-      <div className="bg-[#111111] p-8 rounded-2xl border border-[#222222] shadow-lg max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4">
+      <div className="bg-black/50 p-8 rounded-2xl border border-red-500/20 backdrop-blur-sm shadow-2xl max-w-md w-full">
         <div className="flex flex-col items-center space-y-6">
-          <FiAlertTriangle className="w-12 h-12 text-red-400" />
-          <h1 className="text-2xl font-bold text-white text-center">
+          <div className="relative w-20 h-20">
+            <div className="absolute inset-0 bg-red-500/20 rounded-full animate-pulse"></div>
+            <FiAlertCircle className="w-20 h-20 text-red-500 relative z-10" />
+          </div>
+
+          <h1 className="text-3xl font-bold text-white text-center">
             Error de Autenticación
           </h1>
+
           <p className="text-gray-400 text-center">
-            {error === 'AccessDenied' 
-              ? 'El acceso ha sido denegado. Por favor, intenta con otra cuenta o contacta al soporte.'
-              : 'Ha ocurrido un error durante la autenticación. Por favor, intenta nuevamente.'}
+            {error === 'CredentialsSignin'
+              ? 'Email o contraseña incorrectos'
+              : error || 'Ocurrió un error durante la autenticación'}
           </p>
-          <div className="space-y-3 w-full">
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full py-3 px-4 bg-[#2A2A2A] hover:bg-[#333333] text-white rounded-lg font-medium transition-all"
-            >
-              Volver al inicio
-            </button>
-            <button
-              onClick={() => window.location.href = '/api/auth/signin'}
-              className="w-full py-3 px-4 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all"
-            >
-              Intentar con otra cuenta
-            </button>
-          </div>
+
+          <a
+            href="/auth/signin"
+            className="w-full py-3 px-4 bg-red-500/10 text-red-400 rounded-lg font-medium 
+              transition-all flex items-center justify-center gap-2 hover:bg-red-500/20"
+          >
+            Volver al inicio de sesión
+          </a>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4">
+        <div className="bg-black/50 p-8 rounded-2xl border border-gray-800 backdrop-blur-sm shadow-2xl max-w-md w-full">
+          <div className="flex flex-col items-center space-y-6">
+            <div className="w-20 h-20 rounded-full bg-gray-800 animate-pulse"></div>
+            <div className="h-8 w-3/4 bg-gray-800 rounded animate-pulse"></div>
+            <div className="h-4 w-1/2 bg-gray-800 rounded animate-pulse"></div>
+            <div className="h-12 w-full bg-gray-800 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <ErrorContent />
+    </Suspense>
   );
 }

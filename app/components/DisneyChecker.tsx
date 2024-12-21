@@ -14,6 +14,7 @@ import {
   FiRefreshCw,
   FiMonitor
 } from 'react-icons/fi';
+import { encrypt, decrypt } from '../utils/encryption';
 
 interface AccountResult {
   account: string;
@@ -121,18 +122,24 @@ export default function DisneyChecker() {
         window.disneyCheckerEventSource.close();
       }
 
+      const dataToEncrypt = JSON.stringify(accounts);
+      console.log('📦 Datos a encriptar:', dataToEncrypt);
+      
+      let encryptedData: string;
+      try {
+        encryptedData = encrypt(dataToEncrypt);
+        console.log('🔒 Datos encriptados:', encryptedData);
+      } catch (encryptError) {
+        console.error('❌ Error al encriptar:', encryptError);
+        throw new Error('Error al encriptar los datos');
+      }
+
       const response = await fetch('/api/disney/check', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain',
         },
-        body: JSON.stringify({
-          accounts,
-          proxy: proxyConfig.enabled ? {
-            list: proxyConfig.list,
-            current: proxyConfig.current
-          } : null
-        })
+        body: encryptedData
       });
 
       if (!response.ok) throw new Error('Error al procesar la solicitud');
@@ -152,13 +159,19 @@ export default function DisneyChecker() {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const encryptedResult = line.slice(6);
+              console.log('📦 Resultado encriptado recibido:', encryptedResult);
+              
+              const decryptedResult = decrypt(encryptedResult);
+              console.log('🔓 Resultado desencriptado:', decryptedResult);
+              
+              const data = JSON.parse(decryptedResult);
               if (data.result) {
                 setResults(prev => [...prev, data.result]);
                 setProgress(prev => ({ ...prev, checked: prev.checked + 1 }));
               }
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              console.error('Error procesando resultado:', e);
             }
           }
         }

@@ -1,14 +1,10 @@
-import axios from 'axios-https-proxy-fix';
+import axios, { AxiosResponse, AxiosRequestConfig } from 'axios-https-proxy-fix';
 import crypto from 'crypto';
 
 interface SessionData {
-  access_token: string;
-  userId: string;
-  subscription?: string;
-  billedIn?: string;
-  freeTrial?: boolean;
-  payment?: string;
-  emailVerified?: boolean;
+  accountId: string;
+  id: string;
+  token: string;
 }
 
 interface ApiResponse<T> {
@@ -43,9 +39,10 @@ export class CrunchyrollAPI {
   constructor() {
     this.baseUrl = 'https://beta-api.crunchyroll.com';
     this.headers = {
-      'user-agent': 'Crunchyroll/3.63.1 Android/9 okhttp/4.12.0',
-      'authorization': 'Basic eHd4cXhxcmtueWZtZjZ0bHB1dGg6a1ZlQnVUa2JOTGpCbGRMdzhKQk5DTTRSZmlTR3VWa1I=',
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+      'Origin': 'https://www.crunchyroll.com',
+      'Referer': 'https://www.crunchyroll.com/',
+      'Content-Type': 'application/json'
     };
     this.sessionId = this.generateSessionId();
   }
@@ -67,15 +64,7 @@ export class CrunchyrollAPI {
     };
   }
 
-  private generateDeviceId(): string {
-    return '8004e765-8822-4293-a25a-' + Math.random().toString().substring(2, 14);
-  }
-
-  private generateDeviceName(): string {
-    return 'SM-' + Math.floor(1000 + Math.random() * 9000).toString();
-  }
-
-  private async makeRequest(config: any) {
+  private async makeRequest(config: AxiosRequestConfig): Promise<AxiosResponse> {
     try {
       const response = await axios({
         ...config,
@@ -96,53 +85,56 @@ export class CrunchyrollAPI {
     }
   }
 
+  private generateDeviceId(): string {
+    return Math.random().toString().repeat(2).substring(2, 20);
+  }
+
+  async checkAccount(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const loginResult = await this.login(username, password);
+      
+      if (loginResult.success && loginResult.data) {
+        return { success: true };
+      }
+      
+      return { 
+        success: false, 
+        error: loginResult.error?.message || 'Error desconocido' 
+      };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.message || 'Error al verificar la cuenta' 
+      };
+    }
+  }
+
   async login(username: string, password: string): Promise<LoginResponse> {
     try {
       const deviceId = this.generateDeviceId();
-      const deviceName = this.generateDeviceName();
       console.log('🔄 Iniciando solicitud de login...');
 
       const response = await this.makeRequest({
         method: 'post',
         url: `${this.baseUrl}/auth/v1/token`,
-        data: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&grant_type=password&scope=offline_access&device_id=${deviceId}&device_name=${deviceName}&device_type=${deviceName}`,
+        data: {
+          username,
+          password,
+          grant_type: 'password',
+          scope: 'offline_access'
+        }
       });
 
       if (response.data.access_token) {
-        const accessToken = response.data.access_token;
+        const sessionData = {
+          accountId: response.data.account_id,
+          id: response.data.access_token,
+          token: response.data.access_token
+        };
         
-        // Obtener información de la cuenta
-        const accountInfo = await this.makeRequest({
-          method: 'get',
-          url: `${this.baseUrl}/accounts/v1/me`,
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-
-        const userId = accountInfo.data.external_id;
-        const emailVerified = accountInfo.data.email_verified;
-
-        // Obtener información de la suscripción
-        const subscriptionInfo = await this.makeRequest({
-          method: 'get',
-          url: `${this.baseUrl}/subs/v1/subscriptions/${userId}/products`,
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-
         return {
           success: true,
-          data: {
-            access_token: accessToken,
-            userId: userId,
-            subscription: subscriptionInfo.data.items?.[0]?.name || 'Free',
-            billedIn: subscriptionInfo.data.items?.[0]?.effective_date,
-            freeTrial: subscriptionInfo.data.items?.[0]?.active_free_trial || false,
-            payment: subscriptionInfo.data.items?.[0]?.source || 'N/A',
-            emailVerified: emailVerified
-          }
+          data: sessionData
         };
       }
 
@@ -154,12 +146,11 @@ export class CrunchyrollAPI {
           details: response.data
         }
       };
-
     } catch (error: any) {
-      const errorResponse: LoginResponse = {
+      return {
         success: false,
         error: {
-          code: error.response?.data?.code || 'ERROR',
+          code: error.response?.data?.code || error.code || 'ERROR',
           message: error.message,
           details: error.response?.data || error.toString(),
           fullError: {
@@ -170,15 +161,6 @@ export class CrunchyrollAPI {
           }
         }
       };
-
-      // Manejar errores específicos
-      if (error.response?.data?.code === 'invalid_credentials') {
-        errorResponse.error.message = 'Credenciales inválidas';
-      } else if (error.response?.data?.code === 'force_password_reset') {
-        errorResponse.error.message = 'Se requiere restablecer la contraseña';
-      }
-
-      return errorResponse;
     }
   }
 } 

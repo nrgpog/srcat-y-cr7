@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FanslyCheckerForm } from '@/components/FanslyCheckerForm';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { FanslyCheckerForm } from '../../components/FanslyCheckerForm';
 
 export default function FanslyCheckerPage() {
   const [results, setResults] = useState<any[]>([]);

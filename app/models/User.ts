@@ -1,52 +1,26 @@
 // src/app/models/User.ts
-import mongoose, { Schema, model, models } from 'mongoose';
+import mongoose from 'mongoose';
 
-export interface IUser {
-  email: string;
-  password: string;
-  name?: string;
-  image?: string;
-  createdAt: Date;
-}
-
-const UserSchema = new Schema<IUser>({
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Por favor ingresa un nombre'],
+  },
   email: {
     type: String,
-    required: [true, 'Por favor proporciona un email'],
+    required: [true, 'Por favor ingresa un email'],
     unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\S+@\S+\.\S+$/, 'Por favor ingresa un email válido']
+    match: [/^\S+@\S+\.\S+$/, 'Por favor ingresa un email válido'],
   },
   password: {
     type: String,
-    required: [true, 'Por favor proporciona una contraseña'],
-    minlength: [6, 'La contraseña debe tener al menos 6 caracteres']
-  },
-  name: {
-    type: String,
-    trim: true
-  },
-  image: {
-    type: String
+    required: [true, 'Por favor ingresa una contraseña'],
+    minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-// Middleware para logging
-UserSchema.pre('save', function(next) {
-  console.log('🔄 Guardando usuario:', this.email);
-  next();
-});
-
-UserSchema.post('save', function(doc) {
-  console.log('✅ Usuario guardado exitosamente:', doc.email);
-});
-
-// Verificar si el modelo ya existe antes de crearlo
-const User = models.User || model('User', UserSchema);
-
-export default User;
+export default mongoose.models.User || mongoose.model('User', userSchema);

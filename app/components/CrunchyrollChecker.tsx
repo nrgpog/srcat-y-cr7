@@ -14,6 +14,7 @@ import {
   FiRefreshCw,
   FiDownload
 } from 'react-icons/fi';
+import { encrypt, decrypt } from '../utils/encryption';
 
 interface AccountResult {
   account: string;
@@ -132,23 +133,41 @@ export default function CrunchyrollChecker() {
         const [username, password] = accounts[i].split(':');
         console.log(`🔍 Verificando cuenta ${i + 1}/${accounts.length}: ${username}`);
 
+        // Encriptar los datos antes de enviarlos
+        const dataToEncrypt = JSON.stringify({ username, password });
+        console.log('📦 Datos a encriptar:', dataToEncrypt);
+        
+        let encryptedData: string;
+        try {
+          encryptedData = encrypt(dataToEncrypt);
+          console.log('🔒 Datos encriptados:', encryptedData);
+        } catch (encryptError) {
+          console.error('❌ Error al encriptar:', encryptError);
+          throw new Error('Error al encriptar los datos');
+        }
+
         const response = await fetch('/api/crunchyroll/check', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'text/plain',
           },
-          body: JSON.stringify({ 
-            username, 
-            password,
-            proxy: proxyConfig.enabled ? {
-              list: proxyConfig.list,
-              current: (proxyConfig.current + i) % proxyConfig.list.length
-            } : null
-          }),
+          body: encryptedData,
         });
 
         console.log(`✅ Respuesta recibida para ${username}`);
-        const data = await response.json();
+        const encryptedResponse = await response.text();
+        console.log('📦 Respuesta encriptada:', encryptedResponse);
+
+        let data;
+        try {
+          const decryptedResponse = decrypt(encryptedResponse);
+          console.log('🔓 Respuesta desencriptada:', decryptedResponse);
+          data = JSON.parse(decryptedResponse);
+        } catch (decryptError) {
+          console.error('❌ Error al desencriptar la respuesta:', decryptError);
+          throw new Error('Error al desencriptar la respuesta');
+        }
+
         console.log(`📄 Datos recibidos:`, data);
 
         if (data.success && data.data) {
@@ -178,6 +197,7 @@ export default function CrunchyrollChecker() {
           status: 'Dead',
           error: 'Error al verificar la cuenta'
         }]);
+        setTotalChecked(i + 1);
       }
 
       console.log('⏳ Esperando antes de la siguiente verificación...');

@@ -1,4 +1,4 @@
-import axios from 'axios-https-proxy-fix';
+import axios, { AxiosResponse, AxiosRequestConfig } from 'axios-https-proxy-fix';
 import crypto from 'crypto';
 
 interface SessionData {
@@ -70,7 +70,7 @@ export class FanslyAPI {
     };
   }
 
-  private async makeRequest(config: any) {
+  private async makeRequest(config: AxiosRequestConfig): Promise<AxiosResponse> {
     try {
       const response = await axios({
         ...config,
@@ -82,7 +82,6 @@ export class FanslyAPI {
       });
       return response;
     } catch (error: any) {
-      // Si hay un error 404 de sesión no disponible, genera una nueva sesión y reintenta
       if (error.response?.status === 404) {
         console.log('Sesión no disponible, generando nueva sesión...');
         this.sessionId = this.generateSessionId();
@@ -94,6 +93,26 @@ export class FanslyAPI {
 
   private generateDeviceId(): string {
     return Math.random().toString().repeat(2).substring(2, 20);
+  }
+
+  async checkAccount(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const loginResult = await this.login(username, password);
+      
+      if (loginResult.success && loginResult.data) {
+        return { success: true };
+      }
+      
+      return { 
+        success: false, 
+        error: loginResult.error?.message || 'Error desconocido' 
+      };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.message || 'Error al verificar la cuenta' 
+      };
+    }
   }
 
   async login(username: string, password: string): Promise<LoginResponse> {

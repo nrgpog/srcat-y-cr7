@@ -1,72 +1,59 @@
 import { NextResponse } from 'next/server';
 import { SteamAPI } from '../../../utils/steam/steamApi';
+import { encrypt, decrypt } from '../../../utils/encryption';
 
-const BATCH_SIZE = 3; // Tamaño del lote para procesar simultáneamente
+const BATCH_SIZE = 5;
 
 async function checkAccount(account: string) {
-  const [username, password] = account.split(':');
-  
-  if (!username || !password) {
+  try {
+    const [username, password] = account.split(':');
+    if (!username || !password) {
+      return {
+        account,
+        success: false,
+        error: 'Formato inválido'
+      };
+    }
+
+    const api = new SteamAPI();
+    const result = await api.checkAccount(username, password);
+    return {
+      account,
+      ...result
+    };
+  } catch (error: any) {
     return {
       account,
       success: false,
-      error: 'Formato inválido'
-    };
-  }
-
-  const api = new SteamAPI();
-  const loginResult = await api.login(username, password);
-
-  if (loginResult.success) {
-    const accountInfo = await api.getAccountInfo();
-    console.log('📊 Información de cuenta obtenida:', {
-      status: accountInfo.data?.status,
-      balance: accountInfo.data?.balance,
-      games: accountInfo.data?.games
-    });
-
-    return {
-      account: username,
-      success: true,
-      details: {
-        username,
-        password,
-        status: accountInfo.data?.status || 'No disponible',
-        balance: accountInfo.data?.balance || 'No disponible',
-        games: accountInfo.data?.games || { total: 0, list: [] }
-      }
-    };
-  } else if (loginResult.error?.code === '2FA_REQUIRED') {
-    return {
-      account: username,
-      success: true,
-      details: {
-        username,
-        password,
-        status: '2FA_REQUIRED',
-        balance: 'N/A',
-        games: { total: 0, list: [] }
-      }
-    };
-  } else {
-    console.log('❌ Error en login:', loginResult.error);
-    return {
-      account: username,
-      success: false,
-      error: loginResult.error?.message
+      error: error.message || 'Error al verificar la cuenta'
     };
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const { accounts } = await req.json();
+    // Desencriptar los datos recibidos
+    const encryptedData = await req.text();
+    console.log('📦 Datos encriptados recibidos:', encryptedData);
+    
+    let accounts: string[];
+    try {
+      const decryptedData = decrypt(encryptedData);
+      console.log('🔓 Datos desencriptados:', decryptedData);
+      accounts = JSON.parse(decryptedData);
+    } catch (decryptError) {
+      console.error('❌ Error al desencriptar/procesar datos:', decryptError);
+      throw new Error('Error al desencriptar los datos');
+    }
     
     if (!Array.isArray(accounts)) {
-      return NextResponse.json(
-        { error: 'El formato de las cuentas es inválido' },
-        { status: 400 }
-      );
+      const errorResponse = encrypt(JSON.stringify({ 
+        error: 'El formato de las cuentas es inválido' 
+      }));
+      return new Response(errorResponse, {
+        status: 400,
+        headers: { 'Content-Type': 'text/plain' }
+      });
     }
 
     const results = [];
@@ -81,8 +68,9 @@ export async function POST(req: Request) {
         
         for (const result of batchResults) {
           results.push(result);
+          const encryptedResult = encrypt(JSON.stringify({ result }));
           await writer.write(
-            encoder.encode(`data: ${JSON.stringify({ result })}\n\n`)
+            encoder.encode(`data: ${encryptedResult}\n\n`)
           );
         }
       }
@@ -98,11 +86,13 @@ export async function POST(req: Request) {
         'Connection': 'keep-alive'
       }
     });
-  } catch (error) {
-    console.error('Error al verificar cuentas:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    const errorResponse = encrypt(JSON.stringify({ 
+      error: 'Error interno del servidor' 
+    }));
+    return new Response(errorResponse, {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
 } 

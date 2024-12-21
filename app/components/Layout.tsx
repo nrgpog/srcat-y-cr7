@@ -10,7 +10,14 @@ interface LayoutProps {
   onToolChange?: (tool: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll') => void;
 }
 
-const menuItems = [
+type MenuItem = {
+  id: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll';
+  label: string;
+  icon: any;
+  category: string;
+};
+
+const menuItems: MenuItem[] = [
   { id: 'home', label: 'Inicio', icon: FiHome, category: 'General' },
   { id: 'checker', label: 'Card Checker', icon: FiCreditCard, category: 'Cards' },
   { id: 'gen', label: 'Card Generator', icon: FiCreditCard, category: 'Cards' },
@@ -18,19 +25,19 @@ const menuItems = [
   { id: 'steam', label: 'Steam Checker', icon: FiUser, category: 'Accounts' },
   { id: 'disney', label: 'Disney+ Checker', icon: FiPlay, category: 'Streaming' },
   { id: 'crunchyroll', label: 'Crunchyroll Checker', icon: FiPlay, category: 'Streaming' },
-] as const;
+];
 
 export default function Layout({ children, onToolChange }: LayoutProps) {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [currentTool, setCurrentTool] = useState<typeof menuItems[number]['id']>('home');
+  const [currentTool, setCurrentTool] = useState<MenuItem['id']>('home');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const handleToolChange = (tool: typeof menuItems[number]['id']) => {
+  const handleToolChange = (tool: MenuItem['id']) => {
     setCurrentTool(tool);
     setIsMenuOpen(false);
     if (onToolChange) {
@@ -122,13 +129,13 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
   }
 
   // Agrupar elementos del menú por categoría
-  const menuByCategory = menuItems.reduce((acc, item) => {
+  const menuByCategory = menuItems.reduce<Record<string, MenuItem[]>>((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
     }
     acc[item.category].push(item);
     return acc;
-  }, {} as Record<string, typeof menuItems>);
+  }, {});
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black to-gray-900">
@@ -249,18 +256,11 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
                     <Image
                       src={session.user.image}
                       alt="Profile"
-                      width={40}
-                      height={40}
+                      width={32}
+                      height={32}
                       className="rounded-full ring-2 ring-yellow-400/20"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {session.user.name}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {session.user.email}
-                      </p>
-                    </div>
+                    <span className="text-sm text-gray-400">{session.user.name}</span>
                   </div>
                 )}
 
@@ -275,14 +275,17 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
                         key={item.id}
                         whileHover={{ x: -4 }}
                         onClick={() => handleToolChange(item.id)}
-                        className={`w-full p-3 rounded-lg flex items-center gap-3 ${
+                        className={`w-full p-3 rounded-lg flex items-center justify-between ${
                           currentTool === item.id 
                             ? 'bg-yellow-400/10 text-yellow-400' 
                             : 'hover:bg-gray-800/50 text-gray-400 hover:text-white'
                         } transition-colors`}
                       >
-                        <item.icon className="w-5 h-5" />
-                        <span>{item.label}</span>
+                        <div className="flex items-center gap-3">
+                          <item.icon className="w-5 h-5" />
+                          <span>{item.label}</span>
+                        </div>
+                        <FiChevronRight className="w-4 h-4" />
                       </motion.button>
                     ))}
                   </div>
@@ -294,14 +297,8 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="pt-20 md:pl-64 p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          {children}
-        </motion.div>
+      <main className="pt-16 md:pl-64">
+        {children}
       </main>
     </div>
   );

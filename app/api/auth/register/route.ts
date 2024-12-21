@@ -53,6 +53,14 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     console.error('❌ Error en registro:', error);
+    
+    if (error.message.includes('MONGO_URL')) {
+      return NextResponse.json(
+        { error: 'Error de configuración del servidor' },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Error al crear usuario', details: error.message },
       { status: 500 }

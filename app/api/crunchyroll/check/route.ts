@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios-https-proxy-fix';
 import crypto from 'crypto';
+import { encrypt, decrypt } from '../../../utils/encryption';
 
 const ZONE_ID = "03705EEA";
 const API_KEY = "14245A8F44ED4115ACAAE40E026D7D67";
@@ -22,7 +23,7 @@ interface CrunchyrollResponse {
 
 function handleError(error: any): CrunchyrollResponse {
   console.log('❌ Error durante la verificación:', error);
-  console.log('Detalles del error:', error.response?.data || error.message);
+  console.log('Detalles del error:', error.response?.data);
 
   let errorMessage = 'Error al verificar la cuenta';
   const errorCode = error.response?.data?.code;
@@ -52,16 +53,39 @@ function handleError(error: any): CrunchyrollResponse {
 export async function POST(req: Request) {
   try {
     console.log('🔄 Iniciando verificación de cuenta Crunchyroll...');
-    const { username, password } = await req.json();
-    console.log('📧 Email recibido:', username);
+    
+    // Desencriptar los datos recibidos
+    const encryptedData = await req.text();
+    console.log('📦 Datos encriptados recibidos:', encryptedData);
+    
+    let username: string, password: string;
+    
+    try {
+      const decryptedData = decrypt(encryptedData);
+      console.log('🔓 Datos desencriptados:', decryptedData);
+      
+      const data = JSON.parse(decryptedData) as { username: string; password: string };
+      username = data.username;
+      password = data.password;
+      
+      console.log('📧 Email recibido:', username);
+    } catch (decryptError: unknown) {
+      console.error('❌ Error al desencriptar/procesar datos:', decryptError);
+      const errorMessage = decryptError instanceof Error ? decryptError.message : 'Error desconocido';
+      throw new Error(`Error de desencriptación: ${errorMessage}`);
+    }
 
     if (!username || !password) {
-      return NextResponse.json({
+      const errorResponse = encrypt(JSON.stringify({
         success: false,
         error: {
           message: 'Usuario y contraseña son requeridos',
           details: null
         }
+      }));
+      
+      return new Response(errorResponse, {
+        headers: { 'Content-Type': 'text/plain' }
       });
     }
 
@@ -86,8 +110,6 @@ export async function POST(req: Request) {
 
     console.log('🌐 Configuración de proxy:', JSON.stringify(proxyConfig));
 
-    // Login request
-    console.log('🔒 Intentando login...');
     try {
       const loginResponse = await axios({
         method: 'post',
@@ -99,25 +121,28 @@ export async function POST(req: Request) {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         ...proxyConfig,
-        timeout: 10000 // 10 segundos de timeout
+        timeout: 10000
       });
 
       console.log('✅ Respuesta de login recibida:', JSON.stringify(loginResponse.data));
 
-      if (!loginResponse.data || !loginResponse.data.access_token) {
-        return NextResponse.json({
+      if (!loginResponse.data.access_token) {
+        const errorResponse = encrypt(JSON.stringify({
           success: false,
           error: {
             message: 'No se pudo obtener el token de acceso',
-            details: loginResponse.data || 'Data no disponible'
+            details: loginResponse.data
           }
+        }));
+        
+        return new Response(errorResponse, {
+          headers: { 'Content-Type': 'text/plain' }
         });
       }
 
       const accessToken = loginResponse.data.access_token;
       console.log('🎫 Token de acceso obtenido');
 
-      // Get account info
       console.log('👤 Obteniendo información de la cuenta...');
       const accountInfo = await axios({
         method: 'get',
@@ -135,13 +160,12 @@ export async function POST(req: Request) {
       const userId = accountInfo.data.external_id;
       const emailVerified = accountInfo.data.email_verified;
 
-      // Get subscription info
       console.log('💳 Obteniendo información de suscripción...');
       let subscriptionData = {
-        subscription: 'Free',
-        billedIn: null,
-        freeTrial: false,
-        payment: 'N/A'
+        subscription: 'Free' as string,
+        billedIn: undefined as string | undefined,
+        freeTrial: false as boolean,
+        payment: 'N/A' as string
       };
 
       try {
@@ -167,7 +191,6 @@ export async function POST(req: Request) {
           };
         }
       } catch (error: any) {
-        // Si es error 404, significa que no tiene suscripción
         if (error.response?.status === 404) {
           console.log('ℹ️ Cuenta sin suscripción activa');
         } else {
@@ -178,19 +201,33 @@ export async function POST(req: Request) {
       const response: CrunchyrollResponse = {
         success: true,
         data: {
-          ...subscriptionData,
+          subscription: subscriptionData.subscription,
+          billedIn: subscriptionData.billedIn,
+          freeTrial: subscriptionData.freeTrial,
+          payment: subscriptionData.payment,
           emailVerified: emailVerified
         }
       };
 
       console.log('✅ Verificación completada con éxito:', JSON.stringify(response));
-      return NextResponse.json(response);
+      const encryptedResponse = encrypt(JSON.stringify(response));
+      
+      return new Response(encryptedResponse, {
+        headers: { 'Content-Type': 'text/plain' }
+      });
 
     } catch (error: any) {
-      return NextResponse.json(handleError(error));
+      const errorResponse = encrypt(JSON.stringify(handleError(error)));
+      return new Response(errorResponse, {
+        headers: { 'Content-Type': 'text/plain' }
+      });
     }
 
   } catch (error: any) {
-    return NextResponse.json(handleError(error));
+    const errorResponse = encrypt(JSON.stringify(handleError(error)));
+    return new Response(errorResponse, {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
 } 
