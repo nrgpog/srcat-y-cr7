@@ -1,8 +1,8 @@
+// page.tsx
 'use client';
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Layout from './components/Layout';
+import Home from './components/Home';
 import CCChecker from './components/CCChecker';
 import CCGen from './components/CCGen';
 import FanslyChecker from './components/FanslyChecker';
@@ -10,33 +10,33 @@ import SteamChecker from './components/SteamChecker';
 import DisneyChecker from './components/DisneyChecker';
 import CrunchyrollChecker from './components/CrunchyrollChecker';
 
-export default function Home() {
-  const { data: session, status } = useSession();
-  const [currentTool, setCurrentTool] = useState<'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll'>('checker');
-  const router = useRouter();
+export default function Page() {
+  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll'>('home');
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+  const renderTool = () => {
+    switch (currentTool) {
+      case 'home':
+        return <Home />;
+      case 'checker':
+        return <CCChecker />;
+      case 'gen':
+        return <CCGen />;
+      case 'fansly':
+        return <FanslyChecker />;
+      case 'steam':
+        return <SteamChecker />;
+      case 'disney':
+        return <DisneyChecker />;
+      case 'crunchyroll':
+        return <CrunchyrollChecker />;
+      default:
+        return <Home />;
     }
-  }, [status, router]);
-
-  if (status === 'loading') {
-    return null;
-  }
-
-  if (!session) {
-    return null;
-  }
+  };
 
   return (
     <Layout onToolChange={setCurrentTool}>
-      {currentTool === 'checker' && <CCChecker />}
-      {currentTool === 'gen' && <CCGen />}
-      {currentTool === 'fansly' && <FanslyChecker />}
-      {currentTool === 'steam' && <SteamChecker />}
-      {currentTool === 'disney' && <DisneyChecker />}
-      {currentTool === 'crunchyroll' && <CrunchyrollChecker />}
+      {renderTool()}
     </Layout>
   );
 }
