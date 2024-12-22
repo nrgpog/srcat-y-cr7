@@ -91,7 +91,7 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       // Obtener la URL base correcta según el entorno
-      const productionUrl = "https://smaliidkoo-kk4zsz29h-cr777rs-projects.vercel.app";
+      const productionUrl = "https://smaliidkoo.vercel.app";
       const effectiveBaseUrl = process.env.NODE_ENV === "production" ? productionUrl : baseUrl;
 
       // Si la URL comienza con una barra, agrégala a la URL base
@@ -105,7 +105,7 @@ export const authOptions: NextAuthOptions = {
         // Lista de dominios permitidos
         const allowedDomains = [
           "localhost",
-          "smaliidkoo-kk4zsz29h-cr777rs-projects.vercel.app",
+          "smaliidkoo.vercel.app",
           "vercel.app"
         ];
 
