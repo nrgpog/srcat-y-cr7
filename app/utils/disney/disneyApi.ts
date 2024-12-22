@@ -28,8 +28,8 @@ export class DisneyAPI {
   private baseUrl: string;
   private headers: Record<string, string>;
   private sessionId: string;
-  private static readonly ZONE_ID = "D236A4F1";
-  private static readonly API_KEY = "14245A8F44ED4115ACAAE40E026D7D67";
+  private static readonly ZONE_ID = "86512CDB";
+  private static readonly API_KEY = "36C3982355FD45D1ADA119D39DCF634E";
   private static readonly SHOW_LOGS = true;
   private static readonly BATCH_SIZE = 102;
 

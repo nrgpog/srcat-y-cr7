@@ -75,8 +75,8 @@ export class SteamAPI {
   private authData?: SteamAuthData;
   private steamId?: string;
   private sessionId: string;
-  private static readonly ZONE_ID = "03705EEA";
-  private static readonly API_KEY = "14245A8F44ED4115ACAAE40E026D7D67";
+  private static readonly ZONE_ID = "86512CDB";
+  private static readonly API_KEY = "36C3982355FD45D1ADA119D39DCF634E";
 
   constructor() {
     this.baseUrls = {
