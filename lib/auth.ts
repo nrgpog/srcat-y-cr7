@@ -23,6 +23,9 @@ interface ExtendedUser {
   image?: string | null;
 }
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const baseUrl = isDevelopment ? 'http://localhost:3000' : 'https://smaliidkoo.vercel.app';
+
 export const authOptions: NextAuthOptions = {
   providers: [
     DiscordProvider({
@@ -90,13 +93,9 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Obtener la URL base correcta según el entorno
-      const productionUrl = "https://smaliidkoo.vercel.app";
-      const effectiveBaseUrl = process.env.NODE_ENV === "production" ? productionUrl : baseUrl;
-
       // Si la URL comienza con una barra, agrégala a la URL base
       if (url.startsWith("/")) {
-        return `${effectiveBaseUrl}${url}`;
+        return `${baseUrl}${url}`;
       }
 
       // Si la URL ya es una URL completa
@@ -111,23 +110,19 @@ export const authOptions: NextAuthOptions = {
 
         // Si el dominio está en la lista de permitidos, permite la redirección
         if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
-          // Si es localhost en producción, redirige a la URL de producción
-          if (process.env.NODE_ENV === "production" && urlObj.hostname === "localhost") {
-            return url.replace("http://localhost:3000", productionUrl);
-          }
           return url;
         }
       }
 
       // Si no coincide con ninguna condición, redirige a la URL base
-      return effectiveBaseUrl;
+      return baseUrl;
     }
   },
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 días
   },
-  debug: process.env.NODE_ENV === 'development',
+  debug: isDevelopment,
 } as const;
 
 export default authOptions; 
