@@ -5,6 +5,9 @@ import bcrypt from 'bcryptjs';
 import dbConnect from '../app/utils/mongodb';
 import User from '../app/models/User';
 
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
+const DISCORD_SERVER_ID = process.env.DISCORD_SERVER_ID!;
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -26,6 +29,136 @@ interface ExtendedUser {
 const isDevelopment = process.env.NODE_ENV === 'development';
 const baseUrl = isDevelopment ? 'http://localhost:3000' : 'https://smaliidkoo.vercel.app';
 
+async function inviteUserToServer(userId: string, accessToken: string) {
+  try {
+    // Primero intentamos añadir al usuario directamente al servidor
+    const addToServerResponse = await fetch(
+      `https://discord.com/api/v10/guilds/${DISCORD_SERVER_ID}/members/${userId}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: accessToken,
+        }),
+      }
+    );
+
+    if (!addToServerResponse.ok) {
+      console.log('⚠️ No se pudo añadir directamente, creando invitación...');
+
+      // Obtener canales del servidor
+      const channelsResponse = await fetch(
+        `https://discord.com/api/v10/guilds/${DISCORD_SERVER_ID}/channels`,
+        {
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+          },
+        }
+      );
+
+      const channels = await channelsResponse.json();
+      const firstTextChannel = channels.find((channel: any) => channel.type === 0);
+
+      if (!firstTextChannel) {
+        throw new Error('No se encontró un canal de texto válido');
+      }
+
+      // Crear invitación única
+      const createInviteResponse = await fetch(
+        `https://discord.com/api/v10/channels/${firstTextChannel.id}/invites`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            max_age: 86400, // 24 horas
+            max_uses: 1,
+            unique: true,
+          }),
+        }
+      );
+
+      const invite = await createInviteResponse.json();
+
+      // Crear DM con el usuario
+      const dmChannelResponse = await fetch(
+        `https://discord.com/api/v10/users/@me/channels`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            recipient_id: userId,
+          }),
+        }
+      );
+
+      const dmChannel = await dmChannelResponse.json();
+
+      // Enviar mensaje con la invitación
+      await fetch(
+        `https://discord.com/api/v10/channels/${dmChannel.id}/messages`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: `
+¡Bienvenido a Energy Tools! 🚀
+
+Aquí tienes tu invitación exclusiva a nuestro servidor de Discord:
+https://discord.gg/${invite.code}
+
+Esta invitación es única y expirará en 24 horas.
+            `.trim(),
+            components: [
+              {
+                type: 1,
+                components: [
+                  {
+                    type: 2,
+                    style: 5,
+                    label: "Unirse al Servidor",
+                    url: `https://discord.gg/${invite.code}`,
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      console.log('✅ Invitación enviada por DM');
+    } else {
+      console.log('✅ Usuario añadido directamente al servidor');
+
+      // Asignar rol automáticamente si lo deseas
+      if (process.env.DISCORD_DEFAULT_ROLE_ID) {
+        await fetch(
+          `https://discord.com/api/v10/guilds/${DISCORD_SERVER_ID}/members/${userId}/roles/${process.env.DISCORD_DEFAULT_ROLE_ID}`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+            },
+          }
+        );
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error en el proceso de invitación:', error);
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     DiscordProvider({
@@ -33,7 +166,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "identify email",
+          scope: "identify email guilds.join",
         },
       },
     }),
@@ -46,23 +179,17 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         try {
           await dbConnect();
-
           if (!credentials?.email || !credentials?.password) {
             throw new Error('Por favor ingresa email y contraseña');
           }
-
           const user = await User.findOne({ email: credentials.email });
-
           if (!user) {
             throw new Error('Usuario no encontrado');
           }
-
           const isValid = await bcrypt.compare(credentials.password, user.password);
-
           if (!isValid) {
             throw new Error('Contraseña incorrecta');
           }
-
           return {
             id: user._id.toString(),
             email: user.email,
@@ -80,9 +207,14 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = (user as ExtendedUser).id;
+
+        // Si el usuario se autenticó con Discord, intentar añadirlo al servidor
+        if (account?.provider === 'discord' && account.access_token) {
+          await inviteUserToServer(user.id, account.access_token);
+        }
       }
       return token;
     },
@@ -93,28 +225,20 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Si la URL comienza con una barra, agrégala a la URL base
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
       }
-
-      // Si la URL ya es una URL completa
       if (url.startsWith("http")) {
         const urlObj = new URL(url);
-        // Lista de dominios permitidos
         const allowedDomains = [
           "localhost",
           "smaliidkoo.vercel.app",
           "vercel.app"
         ];
-
-        // Si el dominio está en la lista de permitidos, permite la redirección
         if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
           return url;
         }
       }
-
-      // Si no coincide con ninguna condición, redirige a la URL base
       return baseUrl;
     }
   },
@@ -125,4 +249,4 @@ export const authOptions: NextAuthOptions = {
   debug: isDevelopment,
 } as const;
 
-export default authOptions; 
+export default authOptions;
