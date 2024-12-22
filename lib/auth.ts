@@ -90,24 +90,36 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const effectiveBaseUrl = process.env.NEXTAUTH_URL || baseUrl;
-      
-      if (url.startsWith('/')) {
+      // Obtener la URL base correcta según el entorno
+      const productionUrl = "https://smaliidkoo-kk4zsz29h-cr777rs-projects.vercel.app";
+      const effectiveBaseUrl = process.env.NODE_ENV === "production" ? productionUrl : baseUrl;
+
+      // Si la URL comienza con una barra, agrégala a la URL base
+      if (url.startsWith("/")) {
         return `${effectiveBaseUrl}${url}`;
       }
-      
-      if (url.startsWith(effectiveBaseUrl)) {
-        return url;
+
+      // Si la URL ya es una URL completa
+      if (url.startsWith("http")) {
+        const urlObj = new URL(url);
+        // Lista de dominios permitidos
+        const allowedDomains = [
+          "localhost",
+          "smaliidkoo-kk4zsz29h-cr777rs-projects.vercel.app",
+          "vercel.app"
+        ];
+
+        // Si el dominio está en la lista de permitidos, permite la redirección
+        if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
+          // Si es localhost en producción, redirige a la URL de producción
+          if (process.env.NODE_ENV === "production" && urlObj.hostname === "localhost") {
+            return url.replace("http://localhost:3000", productionUrl);
+          }
+          return url;
+        }
       }
-      
-      if (process.env.NODE_ENV === 'development' && url.includes('localhost')) {
-        return url;
-      }
-      
-      if (process.env.NODE_ENV === 'production' && url.includes('.replit.dev')) {
-        return url;
-      }
-      
+
+      // Si no coincide con ninguna condición, redirige a la URL base
       return effectiveBaseUrl;
     }
   },
