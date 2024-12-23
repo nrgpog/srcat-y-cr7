@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { DisneyAPI } from '../../../utils/disney/disneyApi';
 import { encrypt, decrypt } from '../../../utils/encryption';
 
+const BATCH_SIZE = 2; // Tamaño del lote reducido para Vercel
+const TIMEOUT = 8000; // 8 segundos para estar dentro del límite de Vercel
+
 export async function POST(request: Request) {
   const encoder = new TextEncoder();
 
   try {
-    // Desencriptar los datos recibidos
     const encryptedData = await request.text();
     console.log('📦 Datos encriptados recibidos:', encryptedData);
     
@@ -20,7 +22,6 @@ export async function POST(request: Request) {
       throw new Error('Error al desencriptar los datos');
     }
 
-    // Validar que accounts sea un array
     if (!Array.isArray(accounts)) {
       const errorResponse = encrypt(JSON.stringify({ error: 'El formato de entrada debe ser un array de cuentas' }));
       return new Response(errorResponse, {
@@ -40,30 +41,49 @@ export async function POST(request: Request) {
 
     (async () => {
       try {
-        for (const account of accounts) {
-          const [email, password] = account.split(':');
-          if (!email || !password) {
-            await sendResult({
-              account,
-              success: false,
-              error: 'Formato inválido'
-            });
-            continue;
-          }
+        // Procesar cuentas en lotes pequeños
+        for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
+          const batch = accounts.slice(i, i + BATCH_SIZE);
+          
+          // Procesar cada cuenta en el lote con un timeout
+          const promises = batch.map(async (account) => {
+            const [email, password] = account.split(':');
+            if (!email || !password) {
+              return {
+                account,
+                success: false,
+                error: 'Formato inválido'
+              };
+            }
 
-          try {
-            const api = new DisneyAPI();
-            const result = await api.checkAccount(email, password);
-            await sendResult({
-              account,
-              ...result
-            });
-          } catch (error: any) {
-            await sendResult({
-              account,
-              success: false,
-              error: error.message || 'Error al verificar la cuenta'
-            });
+            try {
+              const api = new DisneyAPI();
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout')), TIMEOUT);
+              });
+
+              const result = await Promise.race([
+                api.checkAccount(email, password),
+                timeoutPromise
+              ]);
+
+              return {
+                account,
+                ...result
+              };
+            } catch (error: any) {
+              return {
+                account,
+                success: false,
+                error: error.message === 'Timeout' ? 'Tiempo de espera agotado' : error.message || 'Error al verificar la cuenta'
+              };
+            }
+          });
+
+          // Esperar a que se complete el lote actual
+          const results = await Promise.all(promises);
+          for (const result of results) {
+            await sendResult(result);
           }
         }
       } catch (error) {
