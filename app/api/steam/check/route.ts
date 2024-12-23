@@ -14,9 +14,8 @@ interface CheckResult {
     emailVerified?: boolean;
     phoneVerified?: boolean;
     steamGuard?: boolean;
-    vacBans?: number;
-    tradeBans?: boolean;
-    limitedAccount?: boolean;
+    banStatus?: string;
+    createdAt?: string;
   };
 }
 
@@ -24,20 +23,19 @@ interface AccountResult extends CheckResult {
   account: string;
 }
 
-// Configuración optimizada para Vercel
+// Configuración optimizada para evitar error 429
 const CONFIG = {
-  BATCH_SIZE: 5,           // Número de cuentas por lote
-  ACCOUNT_TIMEOUT: 5000,   // 5 segundos por cuenta
-  MAX_RETRIES: 2,          // Número máximo de reintentos por cuenta
-  RETRY_DELAY: 1000,       // 1 segundo entre reintentos
-  TOTAL_TIMEOUT: 50000     // 50 segundos máximo total (para estar dentro del límite de 60s de Vercel)
+  BATCH_SIZE: 1,           // Una cuenta a la vez para evitar conflictos de proxy
+  ACCOUNT_TIMEOUT: 15000,  // 15 segundos por cuenta
+  MAX_RETRIES: 2,          // 2 reintentos máximo
+  RETRY_DELAY: 3000,       // 3 segundos entre reintentos
+  TOTAL_TIMEOUT: 50000     // 50 segundos máximo total
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function checkAccountWithRetry(
   account: string,
-  api: SteamAPI,
   retryCount = 0
 ): Promise<AccountResult> {
   const [username, password] = account.split(':');
@@ -51,6 +49,8 @@ async function checkAccountWithRetry(
   }
 
   try {
+    // Crear una nueva instancia de API para cada intento
+    const api = new SteamAPI();
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Timeout')), CONFIG.ACCOUNT_TIMEOUT);
     });
@@ -67,9 +67,9 @@ async function checkAccountWithRetry(
       details: result.details
     } as AccountResult;
   } catch (error: any) {
-    if (retryCount < CONFIG.MAX_RETRIES && error.message === 'Timeout') {
+    if (retryCount < CONFIG.MAX_RETRIES) {
       await sleep(CONFIG.RETRY_DELAY);
-      return checkAccountWithRetry(account, api, retryCount + 1);
+      return checkAccountWithRetry(account, retryCount + 1);
     }
 
     return {
@@ -119,8 +119,6 @@ export async function POST(request: Request) {
 
     (async () => {
       try {
-        const api = new SteamAPI();
-        
         for (let i = 0; i < accounts.length; i += CONFIG.BATCH_SIZE) {
           // Verificar si nos acercamos al tiempo límite
           if (Date.now() - startTime > CONFIG.TOTAL_TIMEOUT) {
@@ -133,21 +131,20 @@ export async function POST(request: Request) {
           }
 
           const batch = accounts.slice(i, i + CONFIG.BATCH_SIZE);
-          const promises = batch.map(account => checkAccountWithRetry(account, api));
-
-          try {
-            const results = await Promise.all(promises);
-            for (const result of results) {
+          
+          // Procesar una cuenta a la vez
+          for (const account of batch) {
+            try {
+              const result = await checkAccountWithRetry(account);
               await sendResult(result);
+              // Pequeña pausa entre cuentas
+              if (i + CONFIG.BATCH_SIZE < accounts.length) {
+                await sleep(1000);
+              }
+            } catch (error) {
+              console.error('Error procesando cuenta:', error);
+              continue;
             }
-          } catch (batchError) {
-            console.error('Error procesando lote:', batchError);
-            continue; // Continuar con el siguiente lote si hay error
-          }
-
-          // Pequeña pausa entre lotes para evitar sobrecarga
-          if (i + CONFIG.BATCH_SIZE < accounts.length) {
-            await sleep(500);
           }
         }
       } catch (error) {
