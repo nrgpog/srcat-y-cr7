@@ -1,15 +1,5 @@
 import axios, { AxiosResponse } from 'axios-https-proxy-fix';
-
-// Función para generar UUID usando Web Crypto API
-function generateUUID() {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  array[6] = (array[6] & 0x0f) | 0x40;  // version 4
-  array[8] = (array[8] & 0x3f) | 0x80;  // variant
-  
-  const hex = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
-}
+import crypto from 'crypto';
 
 interface CheckResponse {
   success: boolean;
@@ -60,7 +50,7 @@ export class DisneyAPI {
   }
 
   private generateSessionId(): string {
-    return generateUUID();
+    return crypto.randomBytes(16).toString('hex');
   }
 
   private getProxyConfig() {
@@ -164,7 +154,7 @@ export class DisneyAPI {
         },
         headers: {
           'Authorization': 'Bearer ZGlzbmV5JmFwcGxlJjEuMC4w.H9L7eJvc2oPYwDgmkoar6HzhBJRuUUzt_PcaC3utBI4',
-          'X-BAMSDK-Transaction-ID': generateUUID(),
+          'X-BAMSDK-Transaction-ID': crypto.randomUUID(),
           'Content-Type': 'application/json'
         }
       });
@@ -184,7 +174,7 @@ export class DisneyAPI {
         headers: {
           'Authorization': 'Bearer ZGlzbmV5JmFwcGxlJjEuMC4w.H9L7eJvc2oPYwDgmkoar6HzhBJRuUUzt_PcaC3utBI4',
           'Content-Type': 'application/x-www-form-urlencoded',
-          'X-BAMSDK-Transaction-ID': generateUUID()
+          'X-BAMSDK-Transaction-ID': crypto.randomUUID()
         }
       });
 
@@ -202,7 +192,7 @@ export class DisneyAPI {
         data: { email, password },
         headers: {
           'Authorization': `Bearer ${token2}`,
-          'X-BAMSDK-Transaction-ID': generateUUID(),
+          'X-BAMSDK-Transaction-ID': crypto.randomUUID(),
           'Content-Type': 'application/json'
         }
       });
@@ -223,7 +213,7 @@ export class DisneyAPI {
         data: { id_token: loginResponse.data.id_token },
         headers: {
           'Authorization': `Bearer ${token2}`,
-          'X-BAMSDK-Transaction-ID': generateUUID(),
+          'X-BAMSDK-Transaction-ID': crypto.randomUUID(),
           'Content-Type': 'application/json'
         }
       });
@@ -243,7 +233,7 @@ export class DisneyAPI {
         headers: {
           'Authorization': 'Bearer ZGlzbmV5JmFwcGxlJjEuMC4w.H9L7eJvc2oPYwDgmkoar6HzhBJRuUUzt_PcaC3utBI4',
           'Content-Type': 'application/x-www-form-urlencoded',
-          'X-BAMSDK-Transaction-ID': generateUUID()
+          'X-BAMSDK-Transaction-ID': crypto.randomUUID()
         }
       });
 

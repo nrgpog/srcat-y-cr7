@@ -1,93 +1,71 @@
-// Función para convertir string a ArrayBuffer
-const str2ab = (str: string) => {
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
+import crypto from 'crypto';
+
+// Asegurarnos de que la clave tenga el tamaño correcto (32 bytes = 256 bits)
+const getEncryptionKey = () => {
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key) {
+    console.error('⚠️ ENCRYPTION_KEY no encontrada en variables de entorno');
+    // Generar una clave temporal para desarrollo
+    return crypto.randomBytes(32).toString('hex');
   }
-  return buf;
-}
-
-// Función para convertir ArrayBuffer a string
-const ab2str = (buf: ArrayBuffer) => {
-  return String.fromCharCode.apply(null, Array.from(new Uint8Array(buf)));
-}
-
-// Obtener la clave de encriptación
-const getEncryptionKey = async () => {
-  const key = process.env.ENCRYPTION_KEY || 'default-key-that-is-32-bytes-long!!';
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(key);
-  return await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt', 'decrypt']
-  );
+  
+  // Asegurarnos de que la clave tenga el tamaño correcto
+  const keyBuffer = Buffer.from(key, 'hex');
+  if (keyBuffer.length !== 32) {
+    console.error('⚠️ ENCRYPTION_KEY debe ser de 32 bytes');
+    return crypto.randomBytes(32).toString('hex');
+  }
+  
+  console.log('🔑 Usando clave de encriptación configurada');
+  return key;
 };
 
-// Función para generar IV aleatorio
-const generateIV = () => {
-  return crypto.getRandomValues(new Uint8Array(12));
-};
+const ENCRYPTION_KEY = getEncryptionKey();
+const IV_LENGTH = 16;
 
-// Encriptar datos
-export async function encrypt(text: string): Promise<string> {
+export function encrypt(text: string): string {
   try {
-    const key = await getEncryptionKey();
-    const iv = generateIV();
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-
-    const encrypted = await crypto.subtle.encrypt(
-      {
-        name: 'AES-GCM',
-        iv
-      },
-      key,
-      data
-    );
-
-    // Combinar IV y datos encriptados
-    const encryptedArray = new Uint8Array(encrypted);
-    const combined = new Uint8Array(iv.length + encryptedArray.length);
-    combined.set(iv);
-    combined.set(encryptedArray, iv.length);
-
-    // Convertir a string base64
-    return btoa(ab2str(combined.buffer));
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    
+    const encrypted = cipher.update(text, 'utf8', 'hex');
+    const final = cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+    
+    // Formato: iv:authTag:encrypted+final
+    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted + final;
   } catch (error) {
-    console.error('Error al encriptar:', error);
-    throw new Error('Error al encriptar los datos');
+    console.error('❌ Error en encriptación:', error);
+    console.error('Texto a encriptar:', text);
+    console.error('Clave usada:', ENCRYPTION_KEY);
+    throw error;
   }
 }
 
-// Desencriptar datos
-export async function decrypt(encryptedText: string): Promise<string> {
+export function decrypt(text: string): string {
   try {
-    const key = await getEncryptionKey();
-    const decoder = new TextDecoder();
-
-    // Convertir de base64 a ArrayBuffer
-    const combined = new Uint8Array(str2ab(atob(encryptedText)));
-
-    // Separar IV y datos encriptados
-    const iv = combined.slice(0, 12);
-    const data = combined.slice(12);
-
-    const decrypted = await crypto.subtle.decrypt(
-      {
-        name: 'AES-GCM',
-        iv
-      },
-      key,
-      data
-    );
-
-    return decoder.decode(decrypted);
+    const [ivHex, authTagHex, encryptedHex] = text.split(':');
+    
+    if (!ivHex || !authTagHex || !encryptedHex) {
+      throw new Error('Formato de texto cifrado inválido');
+    }
+    
+    const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    
+    const decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    const final = decipher.final('utf8');
+    
+    return decrypted + final;
   } catch (error) {
-    console.error('Error al desencriptar:', error);
-    throw new Error('Error al desencriptar los datos');
+    console.error('❌ Error en desencriptación:', error);
+    console.error('Datos recibidos:', text);
+    console.error('Clave usada:', ENCRYPTION_KEY);
+    throw error;
   }
 } 
