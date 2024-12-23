@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     
     let accounts: string[];
     try {
-      const decryptedData = decrypt(encryptedData);
+      const decryptedData = await decrypt(encryptedData);
       console.log('🔓 Datos desencriptados');
       accounts = JSON.parse(decryptedData);
     } catch (error) {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
     const sendResult = async (result: any) => {
       try {
-        const encryptedResult = encrypt(JSON.stringify({ result }));
+        const encryptedResult = await encrypt(JSON.stringify({ result }));
         await writer.write(new TextEncoder().encode(`data: ${encryptedResult}\n\n`));
       } catch (error) {
         console.error('Error al enviar resultado:', error);
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       }
     });
   } catch (error: any) {
-    const errorResponse = encrypt(JSON.stringify({ 
+    const errorResponse = await encrypt(JSON.stringify({ 
       error: `Error al procesar la solicitud: ${error.message}` 
     }));
     
