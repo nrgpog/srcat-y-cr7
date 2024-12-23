@@ -24,7 +24,7 @@ interface ExtendedUser {
 }
 
 const isDevelopment = process.env.NODE_ENV === 'development';
-const baseUrl = isDevelopment ? 'http://localhost:3000' : 'https://smaliidkoo.vercel.app';
+const baseUrl = isDevelopment ? 'http://localhost:3000' : 'https://energytools.vercel.app';
 
 export const authOptions: NextAuthOptions = {
   providers: [

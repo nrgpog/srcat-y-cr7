@@ -51,6 +51,7 @@ export default function Home() {
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
               Bienvenido a Energy Tools
             </h1>
+            <p className="text-sm text-yellow-400/70 -mt-2">hecha por aeolous</p>
             <p className="text-gray-400 text-lg">
               La suite de herramientas más completa para verificación de cuentas y generación de tarjetas.
             </p>
