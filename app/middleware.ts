@@ -21,9 +21,18 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  return NextResponse.next();
+  // No interferir con las rutas de autenticación
+  if (request.nextUrl.pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  const response = NextResponse.next();
+  return response;
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: [
+    '/api/:path*',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+  ],
 } 

@@ -29,8 +29,47 @@ interface ExtendedUser {
 const isDevelopment = process.env.NODE_ENV === 'development';
 const baseUrl = isDevelopment ? 'http://localhost:3000' : 'https://energytools.vercel.app';
 
+// Función para obtener la configuración de cookies según el entorno
+const getCookieConfig = () => {
+  const baseConfig = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    secure: !isDevelopment
+  };
+
+  if (!isDevelopment) {
+    return {
+      ...baseConfig,
+      domain: '.energytools.vercel.app'
+    };
+  }
+
+  return baseConfig;
+};
+
+const getStateCookieConfig = () => {
+  const baseConfig = {
+    httpOnly: true,
+    secure: !isDevelopment,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 900 // 15 minutos
+  };
+
+  if (!isDevelopment) {
+    return {
+      ...baseConfig,
+      domain: '.energytools.vercel.app'
+    };
+  }
+
+  return baseConfig;
+};
+
 async function inviteUserToServer(userId: string, accessToken: string) {
   try {
+    console.log('🔄 Intentando añadir usuario al servidor...');
     // Primero intentamos añadir al usuario directamente al servidor
     const addToServerResponse = await fetch(
       `https://discord.com/api/v10/guilds/${DISCORD_SERVER_ID}/members/${userId}`,
@@ -59,12 +98,25 @@ async function inviteUserToServer(userId: string, accessToken: string) {
         }
       );
 
-      const channels = await channelsResponse.json();
-      const firstTextChannel = channels.find((channel: any) => channel.type === 0);
+      const channelsData = await channelsResponse.json();
+      
+      // Verificar que channels sea un array
+      if (!Array.isArray(channelsData)) {
+        console.error('❌ Error: La respuesta de canales no es un array:', channelsData);
+        throw new Error('La respuesta de canales no tiene el formato esperado');
+      }
+
+      console.log(`📊 Canales encontrados: ${channelsData.length}`);
+      
+      // Buscar el primer canal de texto (type 0 = canal de texto)
+      const firstTextChannel = channelsData.find((channel: any) => channel.type === 0);
 
       if (!firstTextChannel) {
+        console.error('❌ No se encontró un canal de texto válido');
         throw new Error('No se encontró un canal de texto válido');
       }
+
+      console.log(`✅ Canal seleccionado: ${firstTextChannel.name}`);
 
       // Crear invitación única
       const createInviteResponse = await fetch(
@@ -83,7 +135,13 @@ async function inviteUserToServer(userId: string, accessToken: string) {
         }
       );
 
+      if (!createInviteResponse.ok) {
+        console.error('❌ Error al crear la invitación:', await createInviteResponse.text());
+        throw new Error('No se pudo crear la invitación');
+      }
+
       const invite = await createInviteResponse.json();
+      console.log('✅ Invitación creada exitosamente');
 
       // Crear DM con el usuario
       const dmChannelResponse = await fetch(
@@ -100,7 +158,13 @@ async function inviteUserToServer(userId: string, accessToken: string) {
         }
       );
 
+      if (!dmChannelResponse.ok) {
+        console.error('❌ Error al crear el canal DM:', await dmChannelResponse.text());
+        throw new Error('No se pudo crear el canal DM');
+      }
+
       const dmChannel = await dmChannelResponse.json();
+      console.log('✅ Canal DM creado exitosamente');
 
       // Enviar mensaje con la invitación
       await fetch(
@@ -152,6 +216,7 @@ Esta invitación es única y expirará en 24 horas.
             },
           }
         );
+        console.log('✅ Rol asignado exitosamente');
       }
     }
   } catch (error) {
@@ -297,33 +362,27 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: `__Secure-next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: true,
-        domain: '.energytools.vercel.app'
-      }
+      name: isDevelopment ? 'next-auth.session-token' : `__Secure-next-auth.session-token`,
+      options: getCookieConfig()
     },
     callbackUrl: {
-      name: `__Secure-next-auth.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: true,
-        domain: '.energytools.vercel.app'
-      }
+      name: isDevelopment ? 'next-auth.callback-url' : `__Secure-next-auth.callback-url`,
+      options: getCookieConfig()
     },
     csrfToken: {
-      name: `__Host-next-auth.csrf-token`,
+      name: isDevelopment ? 'next-auth.csrf-token' : `__Host-next-auth.csrf-token`,
       options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: true
+        ...getCookieConfig(),
+        domain: undefined
       }
+    },
+    pkceCodeVerifier: {
+      name: isDevelopment ? 'next-auth.pkce.code_verifier' : '__Secure-next-auth.pkce.code_verifier',
+      options: getCookieConfig()
+    },
+    state: {
+      name: isDevelopment ? 'next-auth.state' : '__Secure-next-auth.state',
+      options: getStateCookieConfig()
     }
   },
   session: {

@@ -43,6 +43,9 @@ const nextConfig = {
     };
   },
   async headers() {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const baseUrl = isDevelopment ? 'http://localhost:3000' : 'https://energytools.vercel.app';
+
     return [
       {
         source: '/:path*',
@@ -61,12 +64,14 @@ const nextConfig = {
               frame-ancestors 'none';
               block-all-mixed-content;
               upgrade-insecure-requests;
-              connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/ https://*.discord.com/ https://discord.com/ https://energytools.vercel.app/;
+              connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/ https://*.discord.com/ https://discord.com/ ${baseUrl}/;
             `.replace(/\s+/g, ' ').trim()
           },
           {
             key: 'Set-Cookie',
-            value: 'Path=/; Secure; SameSite=Lax'
+            value: isDevelopment 
+              ? 'Path=/; SameSite=Lax'
+              : 'Path=/; Secure; SameSite=Lax'
           },
           {
             key: 'X-Frame-Options',
