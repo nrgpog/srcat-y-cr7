@@ -29,8 +29,18 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'smaliidkoo.vercel.app'],
+      allowedOrigins: ['localhost:3000', 'energytools.vercel.app'],
     },
+  },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/api/auth/:path*',
+          destination: '/api/auth/:path*',
+        },
+      ],
+    };
   },
   async headers() {
     return [
@@ -51,7 +61,7 @@ const nextConfig = {
               frame-ancestors 'none';
               block-all-mixed-content;
               upgrade-insecure-requests;
-              connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/ https://*.discord.com/ https://discord.com/;
+              connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/ https://*.discord.com/ https://discord.com/ https://energytools.vercel.app/;
             `.replace(/\s+/g, ' ').trim()
           },
           {

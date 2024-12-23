@@ -167,10 +167,10 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "identify email guilds.join",
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
         },
+      },
+      httpOptions: {
+        timeout: 10000,
       },
       async profile(profile) {
         if (profile.avatar === null) {
@@ -225,52 +225,74 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
-    async jwt({ token, user, account }) {
-      if (user) {
-        token.id = (user as ExtendedUser).id;
-
-        // Si el usuario se autenticó con Discord, intentar añadirlo al servidor
-        if (account?.provider === 'discord' && account.access_token) {
-          await inviteUserToServer(user.id, account.access_token);
+    async signIn({ user, account, profile }) {
+      try {
+        if (account?.provider === 'discord') {
+          return true;
         }
+        return true;
+      } catch (error) {
+        console.error('Error en signIn callback:', error);
+        return false;
       }
-      return token;
+    },
+    async jwt({ token, user, account }) {
+      try {
+        if (user) {
+          token.id = (user as ExtendedUser).id;
+          if (account?.provider === 'discord' && account.access_token) {
+            token.accessToken = account.access_token;
+            await inviteUserToServer(user.id, account.access_token);
+          }
+        }
+        return token;
+      } catch (error) {
+        console.error('Error en jwt callback:', error);
+        return token;
+      }
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string;
+      try {
+        if (token && session.user) {
+          session.user.id = token.id as string;
+        }
+        return session;
+      } catch (error) {
+        console.error('Error en session callback:', error);
+        return session;
       }
-      return session;
     },
     async redirect({ url, baseUrl }) {
-      console.log('🔄 Redirect called with:', { url, baseUrl });
-      
-      // Si la URL comienza con una barra, es una ruta relativa
-      if (url.startsWith("/")) {
-        console.log('✅ Redirecting to relative path:', `${baseUrl}${url}`);
-        return `${baseUrl}${url}`;
-      }
-
-      // Si es una URL completa
-      if (url.startsWith("http")) {
-        const urlObj = new URL(url);
-        const allowedDomains = [
-          "localhost",
-          "smaliidkoo.vercel.app",
-          "vercel.app",
-          "discord.com"
-        ];
+      try {
+        console.log('🔄 Redirect called with:', { url, baseUrl });
         
-        console.log('🔍 Checking domain:', urlObj.hostname);
-        
-        if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
-          console.log('✅ Redirecting to allowed domain:', url);
-          return url;
+        if (url.startsWith("/")) {
+          console.log('✅ Redirecting to relative path:', `${baseUrl}${url}`);
+          return `${baseUrl}${url}`;
         }
-      }
 
-      console.log('⚠️ Fallback redirect to baseUrl:', baseUrl);
-      return baseUrl;
+        if (url.startsWith("http")) {
+          const urlObj = new URL(url);
+          const allowedDomains = [
+            "localhost",
+            "energytools.vercel.app",
+            "discord.com"
+          ];
+          
+          console.log('🔍 Checking domain:', urlObj.hostname);
+          
+          if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
+            console.log('✅ Redirecting to allowed domain:', url);
+            return url;
+          }
+        }
+
+        console.log('⚠️ Fallback redirect to baseUrl:', baseUrl);
+        return baseUrl;
+      } catch (error) {
+        console.error('Error en redirect callback:', error);
+        return baseUrl;
+      }
     }
   },
   session: {
