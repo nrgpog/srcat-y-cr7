@@ -23,13 +23,14 @@ interface AccountResult extends CheckResult {
   account: string;
 }
 
-// Configuración optimizada para evitar error 429
+// Configuración optimizada para maximizar cuentas verificadas
 const CONFIG = {
   BATCH_SIZE: 1,           // Una cuenta a la vez para evitar conflictos de proxy
-  ACCOUNT_TIMEOUT: 15000,  // 15 segundos por cuenta
-  MAX_RETRIES: 2,          // 2 reintentos máximo
-  RETRY_DELAY: 3000,       // 3 segundos entre reintentos
-  TOTAL_TIMEOUT: 50000     // 50 segundos máximo total
+  ACCOUNT_TIMEOUT: 10000,  // Reducido a 10 segundos por cuenta
+  MAX_RETRIES: 1,          // Reducido a 1 reintento para ahorrar tiempo
+  RETRY_DELAY: 1000,       // Reducido a 1 segundo entre reintentos
+  TOTAL_TIMEOUT: 55000,    // Aumentado a 55 segundos (dejando 5s de margen para Vercel)
+  ACCOUNT_DELAY: 500       // Delay mínimo entre cuentas
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -67,6 +68,7 @@ async function checkAccountWithRetry(
       details: result.details
     } as AccountResult;
   } catch (error: any) {
+    // Solo un reintento si es necesario
     if (retryCount < CONFIG.MAX_RETRIES) {
       await sleep(CONFIG.RETRY_DELAY);
       return checkAccountWithRetry(account, retryCount + 1);
@@ -119,13 +121,17 @@ export async function POST(request: Request) {
 
     (async () => {
       try {
+        let processedAccounts = 0;
+        const totalAccounts = accounts.length;
+
         for (let i = 0; i < accounts.length; i += CONFIG.BATCH_SIZE) {
           // Verificar si nos acercamos al tiempo límite
           if (Date.now() - startTime > CONFIG.TOTAL_TIMEOUT) {
+            const remainingAccounts = totalAccounts - processedAccounts;
             await sendResult({
               account: 'system',
               success: false,
-              error: 'Tiempo límite de Vercel alcanzado. Por favor, procesa el resto de las cuentas en otra solicitud.'
+              error: `Tiempo límite de Vercel alcanzado. Procesadas ${processedAccounts} de ${totalAccounts} cuentas. Quedan ${remainingAccounts} cuentas por procesar.`
             });
             break;
           }
@@ -137,12 +143,15 @@ export async function POST(request: Request) {
             try {
               const result = await checkAccountWithRetry(account);
               await sendResult(result);
-              // Pequeña pausa entre cuentas
-              if (i + CONFIG.BATCH_SIZE < accounts.length) {
-                await sleep(1000);
+              processedAccounts++;
+              
+              // Pequeña pausa entre cuentas, solo si no es la última
+              if (processedAccounts < totalAccounts) {
+                await sleep(CONFIG.ACCOUNT_DELAY);
               }
             } catch (error) {
               console.error('Error procesando cuenta:', error);
+              processedAccounts++;
               continue;
             }
           }
