@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { DisneyAPI } from '../../../utils/disney/disneyApi';
 import { encrypt, decrypt } from '../../../utils/encryption';
 
+const BATCH_SIZE = 2; // Tamaño del lote reducido para evitar timeouts
+
 export async function POST(request: Request) {
   try {
     const encryptedData = await request.text();
@@ -30,21 +32,45 @@ export async function POST(request: Request) {
 
     (async () => {
       try {
-        // Convertir las cuentas al formato requerido por checkBatch
-        const accountObjects = accounts.map(account => {
-          const [email, password] = account.split(':');
-          return { email, password };
-        });
+        // Procesar las cuentas en lotes pequeños
+        for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
+          const batchAccounts = accounts.slice(i, i + BATCH_SIZE);
+          
+          // Convertir y validar las cuentas del lote
+          const accountObjects = batchAccounts
+            .map(account => {
+              const [email, password] = account.split(':');
+              return email && password ? { email, password } : null;
+            })
+            .filter((account): account is { email: string; password: string } => account !== null);
 
-        // Procesar las cuentas en lotes
-        const results = await DisneyAPI.checkBatch(accountObjects);
+          // Procesar el lote actual
+          try {
+            const results = await DisneyAPI.checkBatch(accountObjects);
+            
+            // Enviar resultados del lote
+            for (let j = 0; j < results.length; j++) {
+              await sendResult({
+                account: batchAccounts[j],
+                ...results[j]
+              });
+            }
 
-        // Enviar resultados
-        for (let i = 0; i < results.length; i++) {
-          await sendResult({
-            account: accounts[i],
-            ...results[i]
-          });
+            // Pequeña pausa entre lotes para evitar sobrecarga
+            if (i + BATCH_SIZE < accounts.length) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          } catch (batchError) {
+            console.error('Error procesando lote:', batchError);
+            // Enviar resultados de error para las cuentas del lote
+            for (const account of batchAccounts) {
+              await sendResult({
+                account,
+                success: false,
+                error: 'Error al verificar la cuenta'
+              });
+            }
+          }
         }
       } catch (error) {
         console.error('Error en el stream:', error);
