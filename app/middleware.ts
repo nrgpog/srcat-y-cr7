@@ -12,9 +12,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Verificar que la clave tenga el formato correcto
-  const keyBuffer = Buffer.alloc(32);
-  const tempBuffer = Buffer.from(process.env.ENCRYPTION_KEY || '', 'hex');
-  tempBuffer.copy(keyBuffer);
+  const keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
   if (keyBuffer.length !== 32) {
     console.error('❌ ENCRYPTION_KEY debe ser de 32 bytes');
     return new NextResponse(
