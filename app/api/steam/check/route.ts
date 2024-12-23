@@ -2,38 +2,92 @@ import { NextResponse } from 'next/server';
 import { SteamAPI } from '../../../utils/steam/steamApi';
 import { encrypt, decrypt } from '../../../utils/encryption';
 
-const BATCH_SIZE = 5;
+interface CheckResult {
+  success: boolean;
+  error?: string;
+  details?: {
+    games?: number;
+    level?: number;
+    balance?: string;
+    country?: string;
+    lastLogin?: string;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
+    steamGuard?: boolean;
+    vacBans?: number;
+    tradeBans?: boolean;
+    limitedAccount?: boolean;
+  };
+}
 
-async function checkAccount(account: string) {
-  try {
-    const [username, password] = account.split(':');
-    if (!username || !password) {
-      return {
-        account,
-        success: false,
-        error: 'Formato inválido'
-      };
-    }
+interface AccountResult extends CheckResult {
+  account: string;
+}
 
-    const api = new SteamAPI();
-    const result = await api.checkAccount(username, password);
-    return {
-      account,
-      ...result
-    };
-  } catch (error: any) {
+// Configuración optimizada para Vercel
+const CONFIG = {
+  BATCH_SIZE: 5,           // Número de cuentas por lote
+  ACCOUNT_TIMEOUT: 5000,   // 5 segundos por cuenta
+  MAX_RETRIES: 2,          // Número máximo de reintentos por cuenta
+  RETRY_DELAY: 1000,       // 1 segundo entre reintentos
+  TOTAL_TIMEOUT: 50000     // 50 segundos máximo total (para estar dentro del límite de 60s de Vercel)
+};
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function checkAccountWithRetry(
+  account: string,
+  api: SteamAPI,
+  retryCount = 0
+): Promise<AccountResult> {
+  const [username, password] = account.split(':');
+  
+  if (!username || !password) {
     return {
       account,
       success: false,
-      error: error.message || 'Error al verificar la cuenta'
-    };
+      error: 'Formato inválido'
+    } as AccountResult;
+  }
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout')), CONFIG.ACCOUNT_TIMEOUT);
+    });
+
+    const result = await Promise.race([
+      api.checkAccount(username, password),
+      timeoutPromise
+    ]) as CheckResult;
+
+    return {
+      account,
+      success: result.success,
+      error: result.error,
+      details: result.details
+    } as AccountResult;
+  } catch (error: any) {
+    if (retryCount < CONFIG.MAX_RETRIES && error.message === 'Timeout') {
+      await sleep(CONFIG.RETRY_DELAY);
+      return checkAccountWithRetry(account, api, retryCount + 1);
+    }
+
+    return {
+      account,
+      success: false,
+      error: error.message === 'Timeout' ? 
+        `Tiempo de espera agotado después de ${retryCount + 1} intentos` : 
+        error.message || 'Error al verificar la cuenta'
+    } as AccountResult;
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const encoder = new TextEncoder();
+  const startTime = Date.now();
+
   try {
-    // Desencriptar los datos recibidos
-    const encryptedData = await req.text();
+    const encryptedData = await request.text();
     console.log('📦 Datos encriptados recibidos:', encryptedData);
     
     let accounts: string[];
@@ -45,39 +99,63 @@ export async function POST(req: Request) {
       console.error('❌ Error al desencriptar/procesar datos:', decryptError);
       throw new Error('Error al desencriptar los datos');
     }
-    
+
     if (!Array.isArray(accounts)) {
-      const errorResponse = encrypt(JSON.stringify({ 
-        error: 'El formato de las cuentas es inválido' 
-      }));
+      const errorResponse = encrypt(JSON.stringify({ error: 'El formato de entrada debe ser un array de cuentas' }));
       return new Response(errorResponse, {
         status: 400,
         headers: { 'Content-Type': 'text/plain' }
       });
     }
 
-    const results = [];
-    const encoder = new TextEncoder();
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
 
-    const processAccounts = async () => {
-      for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
-        const batch = accounts.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(batch.map(checkAccount));
-        
-        for (const result of batchResults) {
-          results.push(result);
-          const encryptedResult = encrypt(JSON.stringify({ result }));
-          await writer.write(
-            encoder.encode(`data: ${encryptedResult}\n\n`)
-          );
-        }
-      }
-      await writer.close();
+    const sendResult = async (result: AccountResult) => {
+      const encryptedResult = encrypt(JSON.stringify({ result }));
+      const data = encoder.encode(`data: ${encryptedResult}\n\n`);
+      await writer.write(data);
     };
 
-    processAccounts();
+    (async () => {
+      try {
+        const api = new SteamAPI();
+        
+        for (let i = 0; i < accounts.length; i += CONFIG.BATCH_SIZE) {
+          // Verificar si nos acercamos al tiempo límite
+          if (Date.now() - startTime > CONFIG.TOTAL_TIMEOUT) {
+            await sendResult({
+              account: 'system',
+              success: false,
+              error: 'Tiempo límite de Vercel alcanzado. Por favor, procesa el resto de las cuentas en otra solicitud.'
+            });
+            break;
+          }
+
+          const batch = accounts.slice(i, i + CONFIG.BATCH_SIZE);
+          const promises = batch.map(account => checkAccountWithRetry(account, api));
+
+          try {
+            const results = await Promise.all(promises);
+            for (const result of results) {
+              await sendResult(result);
+            }
+          } catch (batchError) {
+            console.error('Error procesando lote:', batchError);
+            continue; // Continuar con el siguiente lote si hay error
+          }
+
+          // Pequeña pausa entre lotes para evitar sobrecarga
+          if (i + CONFIG.BATCH_SIZE < accounts.length) {
+            await sleep(500);
+          }
+        }
+      } catch (error) {
+        console.error('Error en el stream:', error);
+      } finally {
+        await writer.close();
+      }
+    })();
 
     return new Response(stream.readable, {
       headers: {
@@ -88,8 +166,9 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     const errorResponse = encrypt(JSON.stringify({ 
-      error: 'Error interno del servidor' 
+      error: `Error al procesar la solicitud: ${error.message}` 
     }));
+    
     return new Response(errorResponse, {
       status: 500,
       headers: { 'Content-Type': 'text/plain' }
