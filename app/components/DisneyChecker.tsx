@@ -16,6 +16,15 @@ import {
 } from 'react-icons/fi';
 import { encrypt, decrypt } from '../utils/encryption';
 
+interface ChunkInfo {
+  chunkIndex: number;
+  totalChunks: number;
+  accountsInChunk: number;
+  totalAccounts: number;
+  startIndex: number;
+  endIndex: number;
+}
+
 interface AccountResult {
   account: string;
   success: boolean;
@@ -56,10 +65,14 @@ export default function DisneyChecker() {
   const [accountsInput, setAccountsInput] = useState<string>('');
   const [results, setResults] = useState<AccountResult[]>([]);
   const [isChecking, setIsChecking] = useState<boolean>(false);
-  const [totalChecked, setTotalChecked] = useState<number>(0);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState({ checked: 0, total: 0 });
+  const [progress, setProgress] = useState({ 
+    checked: 0, 
+    total: 0,
+    currentChunk: 0,
+    totalChunks: 0
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [proxyConfig, setProxyConfig] = useState<ProxyConfig>({
     enabled: false,
@@ -89,6 +102,66 @@ export default function DisneyChecker() {
     setShowSettings(false);
   };
 
+  const processChunk = async (accounts: string[], chunkInfo: ChunkInfo) => {
+    try {
+      const dataToEncrypt = JSON.stringify({
+        accounts,
+        chunk: chunkInfo.chunkIndex
+      });
+      const encryptedData = encrypt(dataToEncrypt);
+
+      const response = await fetch('/api/disney/check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: encryptedData
+      });
+
+      if (!response.ok) throw new Error('Error al procesar el chunk');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) throw new Error('No se pudo iniciar la lectura de la respuesta');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const encryptedResult = line.slice(6);
+              const decryptedResult = decrypt(encryptedResult);
+              const data = JSON.parse(decryptedResult);
+              
+              if (data.result) {
+                if (data.result.account === 'system') {
+                  console.log('Mensaje del sistema:', data.result.error);
+                } else {
+                  setResults(prev => [...prev, data.result]);
+                  setProgress(prev => ({ 
+                    ...prev, 
+                    checked: prev.checked + 1 
+                  }));
+                }
+              }
+            } catch (e) {
+              console.error('Error procesando resultado:', e);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error procesando chunk ${chunkInfo.chunkIndex}:`, error);
+      throw error;
+    }
+  };
+
   const checkAccounts = async () => {
     if (!accountsInput.trim()) {
       setError('Por favor, ingresa al menos una cuenta para verificar');
@@ -115,69 +188,46 @@ export default function DisneyChecker() {
       return;
     }
 
-    setProgress({ checked: 0, total: accounts.length });
-
     try {
-      if (window.disneyCheckerEventSource) {
-        window.disneyCheckerEventSource.close();
-      }
-
-      const dataToEncrypt = JSON.stringify(accounts);
-      console.log('📦 Datos a encriptar:', dataToEncrypt);
-      
-      let encryptedData: string;
-      try {
-        encryptedData = encrypt(dataToEncrypt);
-        console.log('🔒 Datos encriptados:', encryptedData);
-      } catch (encryptError) {
-        console.error('❌ Error al encriptar:', encryptError);
-        throw new Error('Error al encriptar los datos');
-      }
-
-      const response = await fetch('/api/disney/check', {
+      // Primera solicitud para obtener información de chunks
+      const initialData = encrypt(JSON.stringify(accounts));
+      const initialResponse = await fetch('/api/disney/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain',
         },
-        body: encryptedData
+        body: initialData
       });
 
-      if (!response.ok) throw new Error('Error al procesar la solicitud');
+      if (!initialResponse.ok) throw new Error('Error al iniciar la verificación');
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      const encryptedChunkInfo = await initialResponse.text();
+      const decryptedChunkInfo = decrypt(encryptedChunkInfo);
+      const { chunks, message } = JSON.parse(decryptedChunkInfo);
 
-      if (!reader) throw new Error('No se pudo iniciar la lectura de la respuesta');
+      console.log('Información de chunks:', message);
+      setProgress({ 
+        checked: 0, 
+        total: accounts.length,
+        currentChunk: 0,
+        totalChunks: chunks.length
+      });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const encryptedResult = line.slice(6);
-              console.log('📦 Resultado encriptado recibido:', encryptedResult);
-              
-              const decryptedResult = decrypt(encryptedResult);
-              console.log('🔓 Resultado desencriptado:', decryptedResult);
-              
-              const data = JSON.parse(decryptedResult);
-              if (data.result) {
-                setResults(prev => [...prev, data.result]);
-                setProgress(prev => ({ ...prev, checked: prev.checked + 1 }));
-              }
-            } catch (e) {
-              console.error('Error procesando resultado:', e);
-            }
-          }
+      // Procesar cada chunk secuencialmente
+      for (const chunkInfo of chunks) {
+        setProgress(prev => ({ ...prev, currentChunk: chunkInfo.chunkIndex + 1 }));
+        
+        const chunkAccounts = accounts.slice(chunkInfo.startIndex, chunkInfo.endIndex);
+        await processChunk(chunkAccounts, chunkInfo);
+        
+        // Pequeña pausa entre chunks
+        if (chunkInfo.chunkIndex < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
     } catch (err) {
       setError('Error al verificar las cuentas. Por favor, intenta nuevamente.');
+      console.error('Error:', err);
     } finally {
       setIsChecking(false);
     }
@@ -249,7 +299,7 @@ export default function DisneyChecker() {
                 className="px-4 py-1 bg-yellow-400/10 rounded-full"
               >
                 <span className="text-sm text-yellow-400 font-medium">
-                  {progress.checked}/{progress.total}
+                  {progress.checked}/{progress.total} - Chunk {progress.currentChunk}/{progress.totalChunks}
                 </span>
               </motion.div>
             )}
@@ -382,7 +432,7 @@ export default function DisneyChecker() {
               setAccountsInput('');
               setResults([]);
               setError(null);
-              setProgress({ checked: 0, total: 0 });
+              setProgress({ checked: 0, total: 0, currentChunk: 0, totalChunks: 0 });
             }}
             className="p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
               transition-colors"

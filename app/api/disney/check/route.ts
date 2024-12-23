@@ -38,7 +38,7 @@ interface ChunkInfo {
   endIndex: number;
 }
 
-// Configuración optimizada para procesamiento dinámico
+// Configuración optimizada para maximizar cuentas verificadas
 const CONFIG = {
   BATCH_SIZE: 1,           // Una cuenta a la vez para evitar conflictos de proxy
   ACCOUNT_TIMEOUT: 10000,  // 10 segundos por cuenta
@@ -49,8 +49,6 @@ const CONFIG = {
   MAX_ACCOUNTS_PER_CHUNK: 15, // Máximo de cuentas por chunk para asegurar completar en tiempo
   MIN_ACCOUNTS_PER_CHUNK: 5   // Mínimo de cuentas por chunk para eficiencia
 };
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function calculateChunks(accounts: string[]): ChunkInfo[] {
   const totalAccounts = accounts.length;
@@ -76,6 +74,8 @@ function calculateChunks(accounts: string[]): ChunkInfo[] {
     };
   });
 }
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function checkAccountWithRetry(
   account: string,
