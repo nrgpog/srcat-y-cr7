@@ -167,7 +167,25 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "identify email guilds.join",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
         },
+      },
+      async profile(profile) {
+        if (profile.avatar === null) {
+          const defaultAvatarNumber = parseInt(profile.discriminator) % 5;
+          profile.image_url = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNumber}.png`;
+        } else {
+          const format = profile.avatar.startsWith("a_") ? "gif" : "png";
+          profile.image_url = `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${format}`;
+        }
+        return {
+          id: profile.id,
+          name: profile.username,
+          email: profile.email,
+          image: profile.image_url,
+        };
       },
     }),
     CredentialsProvider({
@@ -225,20 +243,33 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      console.log('🔄 Redirect called with:', { url, baseUrl });
+      
+      // Si la URL comienza con una barra, es una ruta relativa
       if (url.startsWith("/")) {
+        console.log('✅ Redirecting to relative path:', `${baseUrl}${url}`);
         return `${baseUrl}${url}`;
       }
+
+      // Si es una URL completa
       if (url.startsWith("http")) {
         const urlObj = new URL(url);
         const allowedDomains = [
           "localhost",
           "smaliidkoo.vercel.app",
-          "vercel.app"
+          "vercel.app",
+          "discord.com"
         ];
+        
+        console.log('🔍 Checking domain:', urlObj.hostname);
+        
         if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
+          console.log('✅ Redirecting to allowed domain:', url);
           return url;
         }
       }
+
+      console.log('⚠️ Fallback redirect to baseUrl:', baseUrl);
       return baseUrl;
     }
   },

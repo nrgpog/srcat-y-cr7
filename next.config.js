@@ -51,7 +51,7 @@ const nextConfig = {
               frame-ancestors 'none';
               block-all-mixed-content;
               upgrade-insecure-requests;
-              connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/;
+              connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/ https://*.discord.com/ https://discord.com/;
             `.replace(/\s+/g, ' ').trim()
           },
           {
