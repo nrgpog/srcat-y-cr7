@@ -57,12 +57,16 @@ const nextConfig = {
               font-src 'self';
               object-src 'none';
               base-uri 'self';
-              form-action 'self';
+              form-action 'self' https://discord.com;
               frame-ancestors 'none';
               block-all-mixed-content;
               upgrade-insecure-requests;
               connect-src 'self' https://discord.com/api/ https://cdn.discordapp.com/ https://*.discord.com/ https://discord.com/ https://energytools.vercel.app/;
             `.replace(/\s+/g, ' ').trim()
+          },
+          {
+            key: 'Set-Cookie',
+            value: 'Path=/; Secure; SameSite=Lax'
           },
           {
             key: 'X-Frame-Options',

@@ -170,7 +170,7 @@ export const authOptions: NextAuthOptions = {
         },
       },
       httpOptions: {
-        timeout: 10000,
+        timeout: 40000,
       },
       async profile(profile) {
         if (profile.avatar === null) {
@@ -295,10 +295,43 @@ export const authOptions: NextAuthOptions = {
       }
     }
   },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: '.energytools.vercel.app'
+      }
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: '.energytools.vercel.app'
+      }
+    },
+    csrfToken: {
+      name: `__Host-next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true
+      }
+    }
+  },
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 días
   },
+  secret: process.env.NEXTAUTH_SECRET,
+  useSecureCookies: true,
   debug: isDevelopment,
 } as const;
 
