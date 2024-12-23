@@ -2,18 +2,20 @@ import { NextResponse } from 'next/server';
 import { DisneyAPI } from '../../../utils/disney/disneyApi';
 import { encrypt, decrypt } from '../../../utils/encryption';
 
+const BATCH_SIZE = 2; // Procesar cuentas en lotes pequeños
+
 export async function POST(request: Request) {
   const encoder = new TextEncoder();
 
   try {
     // Desencriptar los datos recibidos
     const encryptedData = await request.text();
-    console.log('📦 Datos encriptados recibidos:', encryptedData);
+    console.log('📦 Datos encriptados recibidos');
     
     let accounts: string[];
     try {
       const decryptedData = decrypt(encryptedData);
-      console.log('🔓 Datos desencriptados:', decryptedData);
+      console.log('🔓 Datos desencriptados');
       accounts = JSON.parse(decryptedData);
     } catch (decryptError) {
       console.error('❌ Error al desencriptar/procesar datos:', decryptError);
@@ -38,32 +40,51 @@ export async function POST(request: Request) {
       await writer.write(data);
     };
 
+    // Procesar cuentas en lotes
     (async () => {
       try {
-        for (const account of accounts) {
-          const [email, password] = account.split(':');
-          if (!email || !password) {
-            await sendResult({
-              account,
-              success: false,
-              error: 'Formato inválido'
-            });
-            continue;
+        for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
+          const batch = accounts.slice(i, i + BATCH_SIZE);
+          console.log(`🔄 Procesando lote ${Math.floor(i/BATCH_SIZE) + 1} de ${Math.ceil(accounts.length/BATCH_SIZE)}`);
+          
+          // Procesar cada cuenta en el lote actual
+          const batchPromises = batch.map(async (account) => {
+            const [email, password] = account.split(':');
+            if (!email || !password) {
+              return {
+                account,
+                success: false,
+                error: 'Formato inválido'
+              };
+            }
+
+            try {
+              const api = new DisneyAPI();
+              const result = await api.checkAccount(email, password);
+              return {
+                account,
+                ...result
+              };
+            } catch (error: any) {
+              return {
+                account,
+                success: false,
+                error: error.message || 'Error al verificar la cuenta'
+              };
+            }
+          });
+
+          // Esperar a que se completen todas las verificaciones del lote
+          const batchResults = await Promise.all(batchPromises);
+          
+          // Enviar resultados del lote
+          for (const result of batchResults) {
+            await sendResult(result);
           }
 
-          try {
-            const api = new DisneyAPI();
-            const result = await api.checkAccount(email, password);
-            await sendResult({
-              account,
-              ...result
-            });
-          } catch (error: any) {
-            await sendResult({
-              account,
-              success: false,
-              error: error.message || 'Error al verificar la cuenta'
-            });
+          // Pequeña pausa entre lotes para evitar sobrecarga
+          if (i + BATCH_SIZE < accounts.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       } catch (error) {

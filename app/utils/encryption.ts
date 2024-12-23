@@ -10,7 +10,9 @@ const getEncryptionKey = () => {
   }
   
   // Asegurarnos de que la clave tenga el tamaño correcto
-  const keyBuffer = Buffer.from(key, 'hex');
+  const keyBuffer = Buffer.alloc(32);
+  const tempBuffer = Buffer.from(key, 'hex');
+  tempBuffer.copy(keyBuffer);
   if (keyBuffer.length !== 32) {
     console.error('⚠️ ENCRYPTION_KEY debe ser de 32 bytes');
     return crypto.randomBytes(32).toString('hex');
@@ -26,7 +28,9 @@ const IV_LENGTH = 16;
 export function encrypt(text: string): string {
   try {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+    const key = Buffer.alloc(32);
+    const tempKey = Buffer.from(ENCRYPTION_KEY, 'hex');
+    tempKey.copy(key);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     
     const encrypted = cipher.update(text, 'utf8', 'hex');
@@ -51,7 +55,9 @@ export function decrypt(text: string): string {
       throw new Error('Formato de texto cifrado inválido');
     }
     
-    const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+    const key = Buffer.alloc(32);
+    const tempKey = Buffer.from(ENCRYPTION_KEY, 'hex');
+    tempKey.copy(key);
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');
     

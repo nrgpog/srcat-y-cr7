@@ -75,27 +75,36 @@ export class DisneyAPI {
   private async makeRequest(config: any, retryCount = 0): Promise<AxiosResponse> {
     try {
       this.log(`🔄 Haciendo petición a: ${config.url}`);
-      this.log('📝 Headers:', JSON.stringify(config.headers, null, 2));
-      this.log('📦 Data:', config.data);
 
-      const response = await axios({
+      const axiosConfig = {
         ...config,
         ...this.getProxyConfig(),
         headers: {
           ...this.headers,
           ...config.headers
-        }
-      });
+        },
+        timeout: 30000, // 30 segundos de timeout
+        maxRedirects: 5,
+        validateStatus: (status: number) => status < 500, // Aceptar cualquier respuesta < 500
+      };
+
+      const response = await axios(axiosConfig);
 
       this.log(`✅ Respuesta recibida de ${config.url}`);
       this.log('📊 Status:', response.status);
-      this.log('📄 Data:', JSON.stringify(response.data, null, 2));
 
       return response;
     } catch (error: any) {
       this.log(`❌ Error en petición a ${config.url}:`, error.message);
-      this.log('📊 Status:', error.response?.status);
-      this.log('📄 Error Data:', JSON.stringify(error.response?.data, null, 2));
+
+      // Si es un error de timeout o de red, reintentar
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || !error.response) {
+        if (retryCount < 2) {
+          this.log(`🔄 Reintentando petición (intento ${retryCount + 1}/2)...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+          return this.makeRequest(config, retryCount + 1);
+        }
+      }
 
       // Detectar cuenta con posible 2FA y reintentar una vez
       if (error.response?.status === 401 && 
@@ -103,35 +112,11 @@ export class DisneyAPI {
         if (retryCount === 0) {
           this.log('🔄 Cuenta bloqueada, reintentando una vez más...');
           this.sessionId = this.generateSessionId();
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Esperar 2 segundos antes de reintentar
+          await new Promise(resolve => setTimeout(resolve, 2000));
           return this.makeRequest(config, retryCount + 1);
         } else {
-          // Si ya se reintentó y sigue bloqueada, entonces sí es 2FA
           throw new Error('2FA activo');
         }
-      }
-
-      // Manejar error de ubicación prohibida
-      if (error.response?.status === 400 && 
-          error.response?.data?.error_description === "forbidden-location") {
-        this.log('🔄 Ubicación bloqueada, intentando con nueva sesión...');
-        this.sessionId = this.generateSessionId();
-        // Aumentar el tiempo de espera entre reintentos
-        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
-        return this.makeRequest(config, retryCount + 1);
-      }
-
-      // Manejar error de sesión no disponible
-      if (error.response?.status === 404 && retryCount < 3) {
-        this.log('🔄 Sesión no disponible, generando nueva sesión...');
-        this.sessionId = this.generateSessionId();
-        return this.makeRequest(config, retryCount + 1);
-      }
-
-      // Manejar errores de validación
-      if (error.response?.status === 400 && error.response?.data?.errors) {
-        const errorMessage = error.response.data.errors.map((e: any) => e.description || e.code).join(', ');
-        throw new Error(`Error de validación: ${errorMessage}`);
       }
 
       throw error;
@@ -141,6 +126,9 @@ export class DisneyAPI {
   async checkAccount(email: string, password: string): Promise<CheckResponse> {
     try {
       this.log('🔄 Iniciando verificación de cuenta Disney+ para:', email);
+
+      // Añadir retraso aleatorio para evitar detección
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
 
       // Paso 1: Obtener el primer token
       const deviceResponse = await this.makeRequest({
@@ -301,13 +289,18 @@ export class DisneyAPI {
 
     } catch (error: any) {
       this.log('❌ Error en la verificación:', error.message);
-      this.log('Stack trace:', error.stack);
 
-      // Manejar específicamente el error de 2FA
-      if (error.message === '2FA activo') {
+      if (error.response?.status === 429) {
         return {
           success: false,
-          error: '2FA activo'
+          error: 'Rate limit alcanzado, intenta más tarde'
+        };
+      }
+
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        return {
+          success: false,
+          error: 'Timeout de conexión'
         };
       }
 
