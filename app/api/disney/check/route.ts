@@ -2,6 +2,33 @@ import { NextResponse } from 'next/server';
 import { DisneyAPI } from '../../../utils/disney/disneyApi';
 import { encrypt, decrypt } from '../../../utils/encryption';
 
+interface CheckResult {
+  success: boolean;
+  error?: string;
+  details?: {
+    subscription?: string;
+    subType?: string;
+    description?: string;
+    expireDate?: string;
+    nextRenewalDate?: string;
+    freeTrial?: string;
+    lastConnection?: string;
+    voucherCode?: string;
+    earlyAccess?: string;
+    emailVerified?: boolean;
+    securityFlagged?: boolean;
+    country?: string;
+    maxProfiles?: number;
+    userVerified?: boolean;
+    email?: string;
+    createdAt?: string;
+  };
+}
+
+interface AccountResult extends CheckResult {
+  account: string;
+}
+
 const BATCH_SIZE = 2; // Tamaño del lote reducido para Vercel
 const TIMEOUT = 8000; // 8 segundos para estar dentro del límite de Vercel
 
@@ -33,7 +60,7 @@ export async function POST(request: Request) {
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
 
-    const sendResult = async (result: any) => {
+    const sendResult = async (result: AccountResult) => {
       const encryptedResult = encrypt(JSON.stringify({ result }));
       const data = encoder.encode(`data: ${encryptedResult}\n\n`);
       await writer.write(data);
@@ -53,30 +80,32 @@ export async function POST(request: Request) {
                 account,
                 success: false,
                 error: 'Formato inválido'
-              };
+              } as AccountResult;
             }
 
             try {
               const api = new DisneyAPI();
-              const timeoutPromise = new Promise((_, reject) => {
+              const timeoutPromise = new Promise<never>((_, reject) => {
                 setTimeout(() => reject(new Error('Timeout')), TIMEOUT);
               });
 
               const result = await Promise.race([
                 api.checkAccount(email, password),
                 timeoutPromise
-              ]);
+              ]) as CheckResult;
 
               return {
                 account,
-                ...result
-              };
+                success: result.success,
+                error: result.error,
+                details: result.details
+              } as AccountResult;
             } catch (error: any) {
               return {
                 account,
                 success: false,
                 error: error.message === 'Timeout' ? 'Tiempo de espera agotado' : error.message || 'Error al verificar la cuenta'
-              };
+              } as AccountResult;
             }
           });
 
