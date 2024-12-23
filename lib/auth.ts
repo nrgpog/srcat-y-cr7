@@ -291,12 +291,21 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',
+    signOut: '/auth/signout',
+  },
+  events: {
+    async signIn({ user, account, profile, isNewUser }) {
+      console.log('🔑 Evento signIn:', { user, account, isNewUser });
+    },
+    async session({ session, token }) {
+      console.log('📅 Evento session:', { session, token });
+    },
   },
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
+        console.log('🔄 SignIn callback:', { user, account, profile });
         if (account?.provider === 'discord') {
-          console.log('👤 Usuario intentando iniciar sesión con Discord:', user.email);
           return true;
         }
         return true;
@@ -307,11 +316,11 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account }) {
       try {
+        console.log('🔑 JWT callback:', { token, user, account });
         if (user) {
           token.id = (user as ExtendedUser).id;
           if (account?.provider === 'discord' && account.access_token) {
             token.accessToken = account.access_token;
-            console.log('🔑 Token de acceso guardado en JWT');
             await inviteUserToServer(user.id, account.access_token);
           }
         }
@@ -323,9 +332,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       try {
+        console.log('📅 Session callback:', { session, token });
         if (token && session.user) {
           session.user.id = token.id as string;
-          console.log('✅ Sesión actualizada con ID de usuario');
         }
         return session;
       } catch (error) {
@@ -369,44 +378,26 @@ export const authOptions: NextAuthOptions = {
   cookies: {
     sessionToken: {
       name: isDevelopment ? 'next-auth.session-token' : `__Secure-next-auth.session-token`,
-      options: {
-        ...getCookieConfig(),
-        sameSite: isDevelopment ? 'lax' : 'none',
-        secure: true
-      }
+      options: getCookieConfig()
     },
     callbackUrl: {
       name: isDevelopment ? 'next-auth.callback-url' : `__Secure-next-auth.callback-url`,
-      options: {
-        ...getCookieConfig(),
-        sameSite: isDevelopment ? 'lax' : 'none',
-        secure: true
-      }
+      options: getCookieConfig()
     },
     csrfToken: {
       name: isDevelopment ? 'next-auth.csrf-token' : `__Host-next-auth.csrf-token`,
       options: {
         ...getCookieConfig(),
-        sameSite: isDevelopment ? 'lax' : 'none',
-        secure: true,
         domain: undefined
       }
     },
     pkceCodeVerifier: {
       name: isDevelopment ? 'next-auth.pkce.code_verifier' : '__Secure-next-auth.pkce.code_verifier',
-      options: {
-        ...getCookieConfig(),
-        sameSite: isDevelopment ? 'lax' : 'none',
-        secure: true
-      }
+      options: getCookieConfig()
     },
     state: {
       name: isDevelopment ? 'next-auth.state' : '__Secure-next-auth.state',
-      options: {
-        ...getStateCookieConfig(),
-        sameSite: isDevelopment ? 'lax' : 'none',
-        secure: true
-      }
+      options: getStateCookieConfig()
     }
   },
   session: {

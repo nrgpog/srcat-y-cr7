@@ -2,15 +2,6 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // No interferir con las rutas de autenticación y recursos estáticos
-  if (
-    request.nextUrl.pathname.startsWith('/api/auth') ||
-    request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.includes('/favicon.ico')
-  ) {
-    return NextResponse.next();
-  }
-
   // Verificar que la clave de encriptación esté disponible
   if (!process.env.ENCRYPTION_KEY) {
     console.error('❌ ENCRYPTION_KEY no está configurada');
@@ -30,14 +21,24 @@ export function middleware(request: NextRequest) {
     );
   }
 
+  // No interferir con las rutas de autenticación y recursos estáticos
+  if (
+    request.nextUrl.pathname.startsWith('/api/auth') ||
+    request.nextUrl.pathname.startsWith('/_next') ||
+    request.nextUrl.pathname.startsWith('/static') ||
+    request.nextUrl.pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+
   const response = NextResponse.next();
 
-  // Asegurar que las cookies de autenticación tengan los atributos correctos
+  // Asegurar que las cookies de autenticación se manejen correctamente
   const isDevelopment = process.env.NODE_ENV === 'development';
   if (!isDevelopment) {
     response.headers.set(
       'Set-Cookie',
-      'Path=/; Secure; SameSite=None; HttpOnly'
+      'Path=/; Secure; SameSite=Lax; HttpOnly'
     );
   }
 
