@@ -232,6 +232,9 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "identify email guilds.join",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
         },
       },
       httpOptions: {
@@ -293,11 +296,12 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       try {
         if (account?.provider === 'discord') {
+          console.log('👤 Usuario intentando iniciar sesión con Discord:', user.email);
           return true;
         }
         return true;
       } catch (error) {
-        console.error('Error en signIn callback:', error);
+        console.error('❌ Error en signIn callback:', error);
         return false;
       }
     },
@@ -307,12 +311,13 @@ export const authOptions: NextAuthOptions = {
           token.id = (user as ExtendedUser).id;
           if (account?.provider === 'discord' && account.access_token) {
             token.accessToken = account.access_token;
+            console.log('🔑 Token de acceso guardado en JWT');
             await inviteUserToServer(user.id, account.access_token);
           }
         }
         return token;
       } catch (error) {
-        console.error('Error en jwt callback:', error);
+        console.error('❌ Error en jwt callback:', error);
         return token;
       }
     },
@@ -320,10 +325,11 @@ export const authOptions: NextAuthOptions = {
       try {
         if (token && session.user) {
           session.user.id = token.id as string;
+          console.log('✅ Sesión actualizada con ID de usuario');
         }
         return session;
       } catch (error) {
-        console.error('Error en session callback:', error);
+        console.error('❌ Error en session callback:', error);
         return session;
       }
     },
@@ -355,7 +361,7 @@ export const authOptions: NextAuthOptions = {
         console.log('⚠️ Fallback redirect to baseUrl:', baseUrl);
         return baseUrl;
       } catch (error) {
-        console.error('Error en redirect callback:', error);
+        console.error('❌ Error en redirect callback:', error);
         return baseUrl;
       }
     }
@@ -363,26 +369,44 @@ export const authOptions: NextAuthOptions = {
   cookies: {
     sessionToken: {
       name: isDevelopment ? 'next-auth.session-token' : `__Secure-next-auth.session-token`,
-      options: getCookieConfig()
+      options: {
+        ...getCookieConfig(),
+        sameSite: isDevelopment ? 'lax' : 'none',
+        secure: true
+      }
     },
     callbackUrl: {
       name: isDevelopment ? 'next-auth.callback-url' : `__Secure-next-auth.callback-url`,
-      options: getCookieConfig()
+      options: {
+        ...getCookieConfig(),
+        sameSite: isDevelopment ? 'lax' : 'none',
+        secure: true
+      }
     },
     csrfToken: {
       name: isDevelopment ? 'next-auth.csrf-token' : `__Host-next-auth.csrf-token`,
       options: {
         ...getCookieConfig(),
+        sameSite: isDevelopment ? 'lax' : 'none',
+        secure: true,
         domain: undefined
       }
     },
     pkceCodeVerifier: {
       name: isDevelopment ? 'next-auth.pkce.code_verifier' : '__Secure-next-auth.pkce.code_verifier',
-      options: getCookieConfig()
+      options: {
+        ...getCookieConfig(),
+        sameSite: isDevelopment ? 'lax' : 'none',
+        secure: true
+      }
     },
     state: {
       name: isDevelopment ? 'next-auth.state' : '__Secure-next-auth.state',
-      options: getStateCookieConfig()
+      options: {
+        ...getStateCookieConfig(),
+        sameSite: isDevelopment ? 'lax' : 'none',
+        secure: true
+      }
     }
   },
   session: {
