@@ -29,20 +29,20 @@ interface AccountResult extends CheckResult {
   account: string;
 }
 
-// Configuración optimizada para Vercel
+// Configuración optimizada para maximizar cuentas verificadas
 const CONFIG = {
-  BATCH_SIZE: 5,           // Número de cuentas por lote
-  ACCOUNT_TIMEOUT: 5000,   // 5 segundos por cuenta
-  MAX_RETRIES: 2,          // Número máximo de reintentos por cuenta
+  BATCH_SIZE: 1,           // Una cuenta a la vez para evitar conflictos de proxy
+  ACCOUNT_TIMEOUT: 10000,  // 10 segundos por cuenta
+  MAX_RETRIES: 1,          // 1 reintento para ahorrar tiempo
   RETRY_DELAY: 1000,       // 1 segundo entre reintentos
-  TOTAL_TIMEOUT: 50000     // 50 segundos máximo total (para estar dentro del límite de 60s de Vercel)
+  TOTAL_TIMEOUT: 55000,    // 55 segundos (dejando 5s de margen para Vercel)
+  ACCOUNT_DELAY: 500       // Delay mínimo entre cuentas
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function checkAccountWithRetry(
   account: string,
-  api: DisneyAPI,
   retryCount = 0
 ): Promise<AccountResult> {
   const [email, password] = account.split(':');
@@ -56,6 +56,8 @@ async function checkAccountWithRetry(
   }
 
   try {
+    // Crear una nueva instancia de API para cada intento
+    const api = new DisneyAPI();
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Timeout')), CONFIG.ACCOUNT_TIMEOUT);
     });
@@ -72,9 +74,10 @@ async function checkAccountWithRetry(
       details: result.details
     } as AccountResult;
   } catch (error: any) {
-    if (retryCount < CONFIG.MAX_RETRIES && error.message === 'Timeout') {
+    // Solo un reintento si es necesario
+    if (retryCount < CONFIG.MAX_RETRIES) {
       await sleep(CONFIG.RETRY_DELAY);
-      return checkAccountWithRetry(account, api, retryCount + 1);
+      return checkAccountWithRetry(account, retryCount + 1);
     }
 
     return {
@@ -124,35 +127,39 @@ export async function POST(request: Request) {
 
     (async () => {
       try {
-        const api = new DisneyAPI();
-        
+        let processedAccounts = 0;
+        const totalAccounts = accounts.length;
+
         for (let i = 0; i < accounts.length; i += CONFIG.BATCH_SIZE) {
           // Verificar si nos acercamos al tiempo límite
           if (Date.now() - startTime > CONFIG.TOTAL_TIMEOUT) {
+            const remainingAccounts = totalAccounts - processedAccounts;
             await sendResult({
               account: 'system',
               success: false,
-              error: 'Tiempo límite de Vercel alcanzado. Por favor, procesa el resto de las cuentas en otra solicitud.'
+              error: `Tiempo límite de Vercel alcanzado. Procesadas ${processedAccounts} de ${totalAccounts} cuentas. Quedan ${remainingAccounts} cuentas por procesar.`
             });
             break;
           }
 
           const batch = accounts.slice(i, i + CONFIG.BATCH_SIZE);
-          const promises = batch.map(account => checkAccountWithRetry(account, api));
-
-          try {
-            const results = await Promise.all(promises);
-            for (const result of results) {
+          
+          // Procesar una cuenta a la vez
+          for (const account of batch) {
+            try {
+              const result = await checkAccountWithRetry(account);
               await sendResult(result);
+              processedAccounts++;
+              
+              // Pequeña pausa entre cuentas, solo si no es la última
+              if (processedAccounts < totalAccounts) {
+                await sleep(CONFIG.ACCOUNT_DELAY);
+              }
+            } catch (error) {
+              console.error('Error procesando cuenta:', error);
+              processedAccounts++;
+              continue;
             }
-          } catch (batchError) {
-            console.error('Error procesando lote:', batchError);
-            continue; // Continuar con el siguiente lote si hay error
-          }
-
-          // Pequeña pausa entre lotes para evitar sobrecarga
-          if (i + CONFIG.BATCH_SIZE < accounts.length) {
-            await sleep(500);
           }
         }
       } catch (error) {
