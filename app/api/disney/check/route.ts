@@ -29,17 +29,53 @@ interface AccountResult extends CheckResult {
   account: string;
 }
 
-// Configuración optimizada para maximizar cuentas verificadas
+interface ChunkInfo {
+  chunkIndex: number;
+  totalChunks: number;
+  accountsInChunk: number;
+  totalAccounts: number;
+  startIndex: number;
+  endIndex: number;
+}
+
+// Configuración optimizada para procesamiento dinámico
 const CONFIG = {
   BATCH_SIZE: 1,           // Una cuenta a la vez para evitar conflictos de proxy
   ACCOUNT_TIMEOUT: 10000,  // 10 segundos por cuenta
   MAX_RETRIES: 1,          // 1 reintento para ahorrar tiempo
   RETRY_DELAY: 1000,       // 1 segundo entre reintentos
   TOTAL_TIMEOUT: 55000,    // 55 segundos (dejando 5s de margen para Vercel)
-  ACCOUNT_DELAY: 500       // Delay mínimo entre cuentas
+  ACCOUNT_DELAY: 500,      // Delay mínimo entre cuentas
+  MAX_ACCOUNTS_PER_CHUNK: 15, // Máximo de cuentas por chunk para asegurar completar en tiempo
+  MIN_ACCOUNTS_PER_CHUNK: 5   // Mínimo de cuentas por chunk para eficiencia
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+function calculateChunks(accounts: string[]): ChunkInfo[] {
+  const totalAccounts = accounts.length;
+  const estimatedTimePerAccount = CONFIG.ACCOUNT_TIMEOUT + CONFIG.RETRY_DELAY + CONFIG.ACCOUNT_DELAY;
+  const maxAccountsPerRequest = Math.floor(CONFIG.TOTAL_TIMEOUT / estimatedTimePerAccount);
+  const accountsPerChunk = Math.min(
+    Math.max(CONFIG.MIN_ACCOUNTS_PER_CHUNK, maxAccountsPerRequest),
+    CONFIG.MAX_ACCOUNTS_PER_CHUNK
+  );
+  
+  const totalChunks = Math.ceil(totalAccounts / accountsPerChunk);
+  
+  return Array.from({ length: totalChunks }, (_, index) => {
+    const startIndex = index * accountsPerChunk;
+    const endIndex = Math.min(startIndex + accountsPerChunk, totalAccounts);
+    return {
+      chunkIndex: index,
+      totalChunks,
+      accountsInChunk: endIndex - startIndex,
+      totalAccounts,
+      startIndex,
+      endIndex
+    };
+  });
+}
 
 async function checkAccountWithRetry(
   account: string,
@@ -99,10 +135,20 @@ export async function POST(request: Request) {
     console.log('📦 Datos encriptados recibidos:', encryptedData);
     
     let accounts: string[];
+    let chunkIndex: number | undefined;
+    
     try {
       const decryptedData = decrypt(encryptedData);
       console.log('🔓 Datos desencriptados:', decryptedData);
-      accounts = JSON.parse(decryptedData);
+      const data = JSON.parse(decryptedData);
+      
+      // Verificar si es una solicitud de chunk específico
+      if (data.chunk !== undefined) {
+        accounts = data.accounts;
+        chunkIndex = data.chunk;
+      } else {
+        accounts = data;
+      }
     } catch (decryptError) {
       console.error('❌ Error al desencriptar/procesar datos:', decryptError);
       throw new Error('Error al desencriptar los datos');
@@ -112,6 +158,20 @@ export async function POST(request: Request) {
       const errorResponse = encrypt(JSON.stringify({ error: 'El formato de entrada debe ser un array de cuentas' }));
       return new Response(errorResponse, {
         status: 400,
+        headers: { 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Si es la primera solicitud, calcular y devolver la información de chunks
+    if (chunkIndex === undefined) {
+      const chunks = calculateChunks(accounts);
+      const response = encrypt(JSON.stringify({ 
+        type: 'chunks',
+        chunks,
+        message: `Se procesarán ${accounts.length} cuentas en ${chunks.length} solicitudes separadas.`
+      }));
+      return new Response(response, {
+        status: 200,
         headers: { 'Content-Type': 'text/plain' }
       });
     }
@@ -137,7 +197,7 @@ export async function POST(request: Request) {
             await sendResult({
               account: 'system',
               success: false,
-              error: `Tiempo límite de Vercel alcanzado. Procesadas ${processedAccounts} de ${totalAccounts} cuentas. Quedan ${remainingAccounts} cuentas por procesar.`
+              error: `Tiempo límite alcanzado en el chunk ${chunkIndex}. Procesadas ${processedAccounts} de ${totalAccounts} cuentas en este chunk. Quedan ${remainingAccounts} cuentas por procesar.`
             });
             break;
           }
