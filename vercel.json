@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "app/api/disney/check/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "regions": ["iad1"]
+} 
