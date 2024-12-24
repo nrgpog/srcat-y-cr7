@@ -44,7 +44,7 @@ export default function IRC() {
     
     try {
       messagesEndRef.current.scrollIntoView({
-        behavior: 'instant',
+        behavior: force ? 'instant' : 'smooth',
         block: 'end'
       });
     } catch (error) {
@@ -203,7 +203,7 @@ export default function IRC() {
             loadMessages();
             loadUsers();
             setInput('');
-            // Forzar scroll solo al unirse
+            // Forzar scroll instantáneo al unirse
             setShouldAutoScroll(true);
             scrollToBottom(true);
             return;
@@ -241,7 +241,7 @@ export default function IRC() {
     // Añadir el mensaje optimista inmediatamente
     setMessages(prev => [...prev, optimisticMessage]);
     setInput('');
-    // Forzar scroll al enviar mensaje
+    // Forzar scroll instantáneo al enviar mensaje
     setShouldAutoScroll(true);
     scrollToBottom(true);
 
