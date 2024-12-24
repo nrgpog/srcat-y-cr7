@@ -31,18 +31,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.next();
-
-  // Asegurar que las cookies de autenticación se manejen correctamente
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  if (!isDevelopment) {
-    response.headers.set(
-      'Set-Cookie',
-      'Path=/; Secure; SameSite=Lax; HttpOnly'
-    );
-  }
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

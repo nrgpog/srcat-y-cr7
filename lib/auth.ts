@@ -231,16 +231,10 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "identify email guilds.join",
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-        },
+          scope: "identify email guilds.join"
+        }
       },
-      httpOptions: {
-        timeout: 40000,
-      },
-      async profile(profile) {
+      profile(profile) {
         if (profile.avatar === null) {
           const defaultAvatarNumber = parseInt(profile.discriminator) % 5;
           profile.image_url = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNumber}.png`;
@@ -291,88 +285,42 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',
-    signOut: '/auth/signout',
-  },
-  events: {
-    async signIn({ user, account, profile, isNewUser }) {
-      console.log('🔑 Evento signIn:', { user, account, isNewUser });
-    },
-    async session({ session, token }) {
-      console.log('📅 Evento session:', { session, token });
-    },
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      try {
-        console.log('🔄 SignIn callback:', { user, account, profile });
-        if (account?.provider === 'discord') {
-          return true;
-        }
-        return true;
-      } catch (error) {
-        console.error('❌ Error en signIn callback:', error);
-        return false;
-      }
-    },
     async jwt({ token, user, account }) {
-      try {
-        console.log('🔑 JWT callback:', { token, user, account });
-        if (user) {
-          token.id = (user as ExtendedUser).id;
-          if (account?.provider === 'discord' && account.access_token) {
-            token.accessToken = account.access_token;
+      if (user) {
+        token.id = (user as ExtendedUser).id;
+        if (account?.provider === 'discord' && account.access_token) {
+          token.accessToken = account.access_token;
+          try {
             await inviteUserToServer(user.id, account.access_token);
+          } catch (error) {
+            console.error('Error inviting user to server:', error);
           }
         }
-        return token;
-      } catch (error) {
-        console.error('❌ Error en jwt callback:', error);
-        return token;
       }
+      return token;
     },
     async session({ session, token }) {
-      try {
-        console.log('📅 Session callback:', { session, token });
-        if (token && session.user) {
-          session.user.id = token.id as string;
-        }
-        return session;
-      } catch (error) {
-        console.error('❌ Error en session callback:', error);
-        return session;
+      if (token && session.user) {
+        session.user.id = token.id as string;
       }
+      return session;
     },
     async redirect({ url, baseUrl }) {
-      try {
-        console.log('🔄 Redirect called with:', { url, baseUrl });
-        
-        if (url.startsWith("/")) {
-          console.log('✅ Redirecting to relative path:', `${baseUrl}${url}`);
-          return `${baseUrl}${url}`;
-        }
-
-        if (url.startsWith("http")) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("http")) {
+        try {
           const urlObj = new URL(url);
-          const allowedDomains = [
-            "localhost",
-            "energytools.vercel.app",
-            "discord.com"
-          ];
-          
-          console.log('🔍 Checking domain:', urlObj.hostname);
-          
-          if (allowedDomains.some(domain => urlObj.hostname.includes(domain))) {
-            console.log('✅ Redirecting to allowed domain:', url);
+          if (urlObj.hostname === "discord.com" || urlObj.hostname.endsWith("energytools.vercel.app") || urlObj.hostname === "localhost") {
             return url;
           }
+        } catch {
+          return baseUrl;
         }
-
-        console.log('⚠️ Fallback redirect to baseUrl:', baseUrl);
-        return baseUrl;
-      } catch (error) {
-        console.error('❌ Error en redirect callback:', error);
-        return baseUrl;
       }
+      return baseUrl;
     }
   },
   cookies: {
@@ -390,14 +338,6 @@ export const authOptions: NextAuthOptions = {
         ...getCookieConfig(),
         domain: undefined
       }
-    },
-    pkceCodeVerifier: {
-      name: isDevelopment ? 'next-auth.pkce.code_verifier' : '__Secure-next-auth.pkce.code_verifier',
-      options: getCookieConfig()
-    },
-    state: {
-      name: isDevelopment ? 'next-auth.state' : '__Secure-next-auth.state',
-      options: getStateCookieConfig()
     }
   },
   session: {
@@ -405,7 +345,6 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 días
   },
   secret: process.env.NEXTAUTH_SECRET,
-  useSecureCookies: true,
   debug: isDevelopment,
 } as const;
 
