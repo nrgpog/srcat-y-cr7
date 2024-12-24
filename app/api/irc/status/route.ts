@@ -16,8 +16,22 @@ export async function GET() {
     
     const user = await IrcUser.findOne({ userId: session.user.id });
     
+    if (!user) {
+      return NextResponse.json({ isConnected: false });
+    }
+
+    // Si el usuario está activo o idle, considerarlo conectado
+    const isConnected = user.isConnected && user.connectionStatus !== 'disconnected';
+    
+    // Si está conectado, actualizar lastSeen
+    if (isConnected) {
+      user.lastSeen = new Date();
+      await user.save();
+    }
+
     return NextResponse.json({
-      isConnected: !!user?.isConnected
+      isConnected,
+      connectionStatus: user.connectionStatus
     });
   } catch (error) {
     console.error('Error checking IRC status:', error);

@@ -5,6 +5,7 @@ interface IIrcMessage {
   username: string;
   message: string;
   timestamp: Date;
+  userColor?: string;
 }
 
 const ircMessageSchema = new mongoose.Schema<IIrcMessage>({
@@ -24,6 +25,10 @@ const ircMessageSchema = new mongoose.Schema<IIrcMessage>({
     type: Date,
     default: Date.now,
   },
+  userColor: {
+    type: String,
+    required: false,
+  }
 });
 
 const IrcMessage = (mongoose.models.IrcMessage as mongoose.Model<IIrcMessage>) || mongoose.model<IIrcMessage>('IrcMessage', ircMessageSchema);

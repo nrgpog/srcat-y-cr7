@@ -71,11 +71,11 @@ export async function POST() {
       { isConnected: false }
     );
 
-    // Crear mensaje de sistema
+    // Mensaje simple de salida
     const newMessage = new IrcMessage({
       userId: 'system',
       username: 'System',
-      message: `${session.user.name} ha salido del canal`,
+      message: `${session.user.name} salió del IRC`,
     });
     await newMessage.save();
     

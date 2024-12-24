@@ -46,6 +46,10 @@ const ircUserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  userColor: {
+    type: String,
+    required: true,
+  }
 });
 
 // Registrar los modelos si no existen
@@ -128,8 +132,64 @@ export async function GET() {
       .limit(100)
       .lean();
 
+    // Obtener los colores de los usuarios de manera eficiente
+    const userIds = Array.from(new Set(messages.map(msg => msg.userId).filter(id => id !== 'system')));
+    
+    // Asignar colores a usuarios que no los tengan
+    const colors = [
+      '#FF4136', '#FF851B', '#FFDC00', '#2ECC40', '#0074D9',
+      '#B10DC9', '#F012BE', '#01FF70', '#7FDBFF', '#FF4081',
+      '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#00BCD4'
+    ];
+
+    // Obtener usuarios existentes
+    const users = await IrcUser.find({ userId: { $in: userIds } });
+    
+    // Identificar usuarios sin color
+    const usersWithoutColor = users.filter(user => !user.userColor);
+    
+    if (usersWithoutColor.length > 0) {
+      // Obtener colores ya usados
+      const usedColors = users.map(user => user.userColor).filter(Boolean);
+      
+      // Asignar colores a usuarios que no los tengan
+      for (const user of usersWithoutColor) {
+        // Filtrar colores disponibles
+        const availableColors = colors.filter(color => !usedColors.includes(color));
+        
+        // Seleccionar un color
+        const selectedColor = availableColors.length > 0 
+          ? availableColors[Math.floor(Math.random() * availableColors.length)]
+          : colors[Math.floor(Math.random() * colors.length)];
+        
+        // Actualizar usuario con el nuevo color
+        user.userColor = selectedColor;
+        await user.save();
+        
+        // Agregar el color usado a la lista
+        usedColors.push(selectedColor);
+      }
+    }
+
+    // Obtener los usuarios actualizados
+    const updatedUsers = await IrcUser.find({ userId: { $in: userIds } })
+      .select('userId userColor')
+      .lean();
+
+    // Crear un mapa de colores por userId
+    const userColors = updatedUsers.reduce((acc, user) => {
+      acc[user.userId] = user.userColor;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // Agregar los colores a los mensajes
+    const messagesWithColors = messages.map(msg => ({
+      ...msg,
+      userColor: msg.userId === 'system' ? null : (userColors[msg.userId] || '#FF4136')
+    }));
+
     return NextResponse.json({
-      messages: messages.reverse()
+      messages: messagesWithColors.reverse()
     });
   } catch (error) {
     console.error('Error getting IRC messages:', error);
