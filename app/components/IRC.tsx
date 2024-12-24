@@ -90,7 +90,7 @@ export default function IRC() {
         await loadMessages();
         await loadUsers();
       } else {
-        updateStatusMessage('Desconectado - Usa /join snEiopv0055 para unirte');
+        updateStatusMessage('Desconectado - Usa /join {inviteCode} para unirte');
       }
     } catch (error) {
       console.error('Error checking connection:', error);
