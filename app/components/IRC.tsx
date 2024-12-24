@@ -10,11 +10,13 @@ interface Message {
   message: string;
   timestamp: Date;
   isStatus?: boolean;
+  userColor?: string;
 }
 
 interface IrcUser {
   userId: string;
   username: string;
+  userColor: string;
 }
 
 export default function IRC() {
@@ -26,13 +28,37 @@ export default function IRC() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<IrcUser[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('Cargando IRC...');
   const [lastStatusMessage, setLastStatusMessage] = useState<Message | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = useCallback((force = false) => {
+    if (!messagesEndRef.current || (!shouldAutoScroll && !force)) return;
+    
+    try {
+      messagesEndRef.current.scrollIntoView({
+        behavior: 'instant',
+        block: 'end'
+      });
+    } catch (error) {
+      console.error('Error al hacer scroll:', error);
+    }
+  }, [shouldAutoScroll]);
+
+  // Manejador de scroll para detectar si el usuario está en el fondo
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50;
+    setShouldAutoScroll(isAtBottom);
+  }, []);
+
+  // Efecto para manejar el scroll inicial y cuando llegan nuevos mensajes
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages, scrollToBottom]);
 
   const updateStatusMessage = useCallback((message: string) => {
     setStatusMessage(message);
@@ -52,7 +78,10 @@ export default function IRC() {
         throw new Error('Error cargando mensajes');
       }
       const data = await response.json();
-      setMessages(data.messages || []);
+      setMessages(data.messages?.map((msg: Message) => ({
+        ...msg,
+        isStatus: msg.userId === 'system'
+      })) || []);
     } catch (error) {
       console.error('Error loading messages:', error);
       setStatusMessage('Error cargando mensajes');
@@ -74,8 +103,7 @@ export default function IRC() {
 
   const checkConnection = useCallback(async () => {
     try {
-      setIsReconnecting(true);
-      updateStatusMessage('Verificando conexión...');
+      if (isReconnecting) return; // Evitar múltiples intentos de reconexión
       
       const response = await fetch('/api/irc/status');
       const data = await response.json();
@@ -84,9 +112,13 @@ export default function IRC() {
         throw new Error('Error de conexión');
       }
 
+      const wasDisconnected = !isConnected && data.isConnected;
       setIsConnected(data.isConnected);
+      
       if (data.isConnected) {
-        updateStatusMessage('Conexión restaurada');
+        if (wasDisconnected) {
+          updateStatusMessage('Conectado a IRC');
+        }
         await loadMessages();
         await loadUsers();
       } else {
@@ -100,47 +132,38 @@ export default function IRC() {
       setIsLoading(false);
       setIsReconnecting(false);
     }
-  }, [loadMessages, loadUsers, updateStatusMessage]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, statusMessage]);
+  }, [loadMessages, loadUsers, updateStatusMessage, isConnected, isReconnecting]);
 
   useEffect(() => {
     checkConnection();
 
-    // Verificar conexión cada 30 segundos
-    const intervalId = setInterval(checkConnection, 30000);
+    // Verificar conexión cada 2 minutos en lugar de cada 30 segundos
+    const intervalId = setInterval(checkConnection, 120000);
     return () => clearInterval(intervalId);
   }, [checkConnection]);
 
   useEffect(() => {
     if (isConnected) {
-      // Intervalo principal para cargar mensajes y usuarios cada 5 segundos
+      // Intervalo principal para cargar mensajes cada 3 segundos
       const messageInterval = setInterval(() => {
         if (!isReconnecting) {
           loadMessages();
-          loadUsers();
         }
-      }, 5000);
+      }, 3000);
 
-      // Heartbeat cada 15 segundos para mantener la conexión activa
+      // Heartbeat cada 30 segundos para mantener la conexión activa
       const heartbeatInterval = setInterval(() => {
         if (!isReconnecting) {
-          fetch('/api/irc/users')
-            .catch(error => {
-              console.error('Error en heartbeat:', error);
-              checkConnection();
-            });
+          loadUsers();
         }
-      }, 15000);
+      }, 30000);
 
       return () => {
         clearInterval(messageInterval);
         clearInterval(heartbeatInterval);
       };
     }
-  }, [isConnected, isReconnecting, loadMessages, loadUsers, checkConnection]);
+  }, [isConnected, isReconnecting, loadMessages, loadUsers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,8 +190,8 @@ export default function IRC() {
             setInput('');
             return;
           } else {
-            setError('Error al unirse al canal');
-            updateStatusMessage('Error al unirse al canal');
+            setError('Error al unirse al IRC');
+            updateStatusMessage('Error al unirse al IRC');
           }
         } catch (error) {
           setError('Error de conexión');
@@ -181,7 +204,7 @@ export default function IRC() {
     }
 
     if (!isConnected) {
-      setError('Debes unirte al canal primero con /join {inviteCode}');
+      setError('Debes unirte al IRC primero con /join snEiopv0055');
       return;
     }
 
@@ -196,7 +219,10 @@ export default function IRC() {
 
       if (response.ok) {
         setInput('');
-        loadMessages();
+        await loadMessages();
+        // Forzar scroll al enviar mensaje
+        setShouldAutoScroll(true);
+        scrollToBottom(true);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -212,10 +238,10 @@ export default function IRC() {
       setIsConnected(false);
       setMessages([]);
       setConnectedUsers([]);
-      updateStatusMessage('Has salido del canal');
+      updateStatusMessage('Has salido del IRC');
     } catch (error) {
-      console.error('Error leaving channel:', error);
-      updateStatusMessage('Error al salir del canal');
+      console.error('Error leaving IRC:', error);
+      updateStatusMessage('Error al salir del IRC');
     }
   };
 
@@ -243,7 +269,7 @@ export default function IRC() {
               whileTap={{ scale: 0.9 }}
               onClick={handleLeave}
               className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-              title="Salir del canal"
+              title="Salir del IRC"
             >
               <FiLogOut className="w-5 h-5" />
             </motion.button>
@@ -251,23 +277,33 @@ export default function IRC() {
         </div>
 
         {/* Área de mensajes */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-          <AnimatePresence>
+        <div 
+          className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0"
+          onScroll={handleScroll}
+        >
+          <AnimatePresence mode="wait">
             {allMessages.map((msg, index) => (
               <motion.div
-                key={`msg-${index}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className={msg.isStatus ? "text-white/70 text-sm italic" : "flex items-start gap-2"}
+                key={`${msg.timestamp}-${index}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ 
+                  duration: 0.1
+                }}
+                className={msg.isStatus ? "text-gray-300 text-sm" : "flex items-start gap-2"}
               >
                 {!msg.isStatus ? (
                   <>
-                    <span className="text-yellow-400 font-medium">{msg.username}:</span>
+                    <span className="text-white whitespace-nowrap">
+                      <span style={{ color: msg.userColor }}>&lt;</span>
+                      {msg.username}
+                      <span style={{ color: msg.userColor }}>&gt;</span>
+                    </span>
                     <span className="text-gray-300">{msg.message}</span>
                   </>
                 ) : (
-                  msg.message
+                  <span className="text-white">{msg.message}</span>
                 )}
               </motion.div>
             ))}

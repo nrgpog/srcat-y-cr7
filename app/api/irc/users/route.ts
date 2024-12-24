@@ -27,6 +27,15 @@ const ircUserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  userColor: {
+    type: String,
+    required: true,
+  },
+  connectionStatus: {
+    type: String,
+    enum: ['active', 'idle', 'disconnected'],
+    default: 'active'
+  }
 });
 
 // Registrar el modelo si no existe
@@ -45,30 +54,43 @@ export async function GET() {
 
     await dbConnect();
     
-    // Aumentamos el tiempo de inactividad a 30 minutos
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    // Aumentamos el tiempo de inactividad a 4 horas para mayor persistencia
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
     
+    // Solo desconectar usuarios realmente inactivos y en estado idle
     await IrcUser.updateMany(
       { 
-        lastSeen: { $lt: thirtyMinutesAgo },
-        isConnected: true
+        lastSeen: { $lt: fourHoursAgo },
+        connectionStatus: 'idle'
       },
       { 
-        $set: { isConnected: false }
+        $set: { 
+          isConnected: false,
+          connectionStatus: 'disconnected'
+        }
       }
     );
 
-    // Actualizar lastSeen del usuario actual
-    await IrcUser.updateOne(
-      { userId: session.user.id },
-      { 
-        $set: { lastSeen: new Date() }
+    // Actualizar lastSeen del usuario actual sin cambiar su estado de conexión
+    const currentUser = await IrcUser.findOne({ userId: session.user.id });
+    
+    if (currentUser) {
+      // Si el usuario existe, solo actualizamos lastSeen
+      currentUser.lastSeen = new Date();
+      if (currentUser.connectionStatus === 'disconnected') {
+        currentUser.connectionStatus = 'active';
+        currentUser.isConnected = true;
       }
-    );
+      await currentUser.save();
+    }
 
-    const users = await IrcUser.find({ isConnected: true })
-      .select('userId username')
-      .lean();
+    // Obtener usuarios conectados con sus colores
+    const users = await IrcUser.find({ 
+      isConnected: true,
+      connectionStatus: { $ne: 'disconnected' }
+    })
+    .select('userId username userColor')
+    .lean();
 
     return NextResponse.json({ users });
   } catch (error) {
