@@ -54,49 +54,17 @@ export async function GET() {
 
     await dbConnect();
     
-    // Aumentamos el tiempo de inactividad a 4 horas para mayor persistencia
-    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    // Obtener todos los usuarios que se han unido alguna vez
+    const users = await IrcUser.find({})
+      .sort({ joinedAt: -1 }) // Ordenar por fecha de unión
+      .select('userId username isConnected joinedAt lastSeen userColor connectionStatus')
+      .lean();
     
-    // Solo desconectar usuarios realmente inactivos y en estado idle
-    await IrcUser.updateMany(
-      { 
-        lastSeen: { $lt: fourHoursAgo },
-        connectionStatus: 'idle'
-      },
-      { 
-        $set: { 
-          isConnected: false,
-          connectionStatus: 'disconnected'
-        }
-      }
-    );
-
-    // Actualizar lastSeen del usuario actual sin cambiar su estado de conexión
-    const currentUser = await IrcUser.findOne({ userId: session.user.id });
-    
-    if (currentUser) {
-      // Si el usuario existe, solo actualizamos lastSeen
-      currentUser.lastSeen = new Date();
-      if (currentUser.connectionStatus === 'disconnected') {
-        currentUser.connectionStatus = 'active';
-        currentUser.isConnected = true;
-      }
-      await currentUser.save();
-    }
-
-    // Obtener usuarios conectados con sus colores
-    const users = await IrcUser.find({ 
-      isConnected: true,
-      connectionStatus: { $ne: 'disconnected' }
-    })
-    .select('userId username userColor')
-    .lean();
-
     return NextResponse.json({ users });
   } catch (error) {
     console.error('Error getting IRC users:', error);
     return NextResponse.json(
-      { error: 'Error al obtener los usuarios' },
+      { error: 'Error al obtener usuarios del IRC' },
       { status: 500 }
     );
   }

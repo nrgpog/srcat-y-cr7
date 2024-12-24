@@ -11,12 +11,18 @@ interface Message {
   timestamp: Date;
   isStatus?: boolean;
   userColor?: string;
+  id?: string;
+  isOptimistic?: boolean;
 }
 
 interface IrcUser {
   userId: string;
   username: string;
+  isConnected: boolean;
   userColor: string;
+  joinedAt: string;
+  lastSeen: string;
+  connectionStatus: string;
 }
 
 export default function IRC() {
@@ -55,10 +61,11 @@ export default function IRC() {
 
   // Efecto para manejar el scroll inicial y cuando llegan nuevos mensajes
   useEffect(() => {
-    if (messages.length > 0) {
+    // Solo hacer scroll automático si el usuario está en la parte inferior
+    if (messages.length > 0 && shouldAutoScroll) {
       scrollToBottom();
     }
-  }, [messages, scrollToBottom]);
+  }, [messages, scrollToBottom, shouldAutoScroll]);
 
   const updateStatusMessage = useCallback((message: string) => {
     setStatusMessage(message);
@@ -78,10 +85,18 @@ export default function IRC() {
         throw new Error('Error cargando mensajes');
       }
       const data = await response.json();
-      setMessages(data.messages?.map((msg: Message) => ({
+      const newMessages = data.messages?.map((msg: Message) => ({
         ...msg,
-        isStatus: msg.userId === 'system'
-      })) || []);
+        isStatus: msg.userId === 'system',
+        id: `${msg.timestamp}-${msg.userId}-${msg.message}`
+      })) || [];
+
+      // Solo actualizar si hay mensajes nuevos
+      setMessages(prevMessages => {
+        const prevIds = new Set(prevMessages.map(m => m.id));
+        const hasNewMessages = newMessages.some((msg: Message) => !prevIds.has(msg.id));
+        return hasNewMessages ? newMessages : prevMessages;
+      });
     } catch (error) {
       console.error('Error loading messages:', error);
       setStatusMessage('Error cargando mensajes');
@@ -188,6 +203,9 @@ export default function IRC() {
             loadMessages();
             loadUsers();
             setInput('');
+            // Forzar scroll solo al unirse
+            setShouldAutoScroll(true);
+            scrollToBottom(true);
             return;
           } else {
             setError('Error al unirse al IRC');
@@ -208,25 +226,46 @@ export default function IRC() {
       return;
     }
 
+    const messageText = input;
+    // Crear el mensaje optimista
+    const optimisticMessage: Message = {
+      userId: session?.user?.id || '',
+      username: session?.user?.name || '',
+      message: messageText,
+      timestamp: new Date(),
+      id: `optimistic-${Date.now()}`,
+      userColor: connectedUsers.find(u => u.userId === session?.user?.id)?.userColor,
+      isOptimistic: true
+    };
+
+    // Añadir el mensaje optimista inmediatamente
+    setMessages(prev => [...prev, optimisticMessage]);
+    setInput('');
+    // Forzar scroll al enviar mensaje
+    setShouldAutoScroll(true);
+    scrollToBottom(true);
+
     try {
       const response = await fetch('/api/irc/message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: messageText }),
       });
 
-      if (response.ok) {
-        setInput('');
-        await loadMessages();
-        // Forzar scroll al enviar mensaje
-        setShouldAutoScroll(true);
-        scrollToBottom(true);
+      if (!response.ok) {
+        // Si hay error, remover el mensaje optimista
+        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+        throw new Error('Error al enviar mensaje');
       }
+
+      // Cargar los mensajes actualizados del servidor
+      await loadMessages();
     } catch (error) {
       console.error('Error sending message:', error);
       setStatusMessage('Error enviando mensaje');
+      setError('Error al enviar el mensaje');
     }
   };
 
@@ -281,36 +320,32 @@ export default function IRC() {
           className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0"
           onScroll={handleScroll}
         >
-          <AnimatePresence mode="wait">
-            {allMessages.map((msg, index) => (
-              <motion.div
-                key={`${msg.timestamp}-${index}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ 
-                  duration: 0.1
-                }}
-                className={msg.isStatus ? "text-gray-300 text-sm" : "flex items-start gap-2"}
-              >
-                {!msg.isStatus ? (
-                  <>
-                    <span className="text-white whitespace-nowrap">
-                      <span style={{ color: msg.userColor }}>&lt;</span>
-                      {msg.username}
-                      <span style={{ color: msg.userColor }}>&gt;</span>
-                    </span>
-                    <span className="text-gray-300">{msg.message}</span>
-                  </>
-                ) : (
-                  <span className="text-white">{msg.message}</span>
-                )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {allMessages.map((msg, index) => (
+            <motion.div
+              key={msg.id || `${msg.timestamp}-${index}`}
+              initial={msg.isOptimistic ? { opacity: 1 } : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className={msg.isStatus ? "text-gray-300 text-sm" : "flex items-start gap-2"}
+            >
+              {!msg.isStatus ? (
+                <>
+                  <span className="text-white whitespace-nowrap">
+                    <span style={{ color: msg.userColor }}>&lt;</span>
+                    {msg.username}
+                    <span style={{ color: msg.userColor }}>&gt;</span>
+                  </span>
+                  <span className="text-gray-300">{msg.message}</span>
+                </>
+              ) : (
+                <span className="text-white">{msg.message}</span>
+              )}
+            </motion.div>
+          ))}
           <div ref={messagesEndRef} />
         </div>
-
+        
         {/* Input */}
         <div className="mt-auto">
           <form onSubmit={handleSubmit} className="p-4 border-t border-gray-800 bg-black/30">
