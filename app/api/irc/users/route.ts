@@ -45,17 +45,24 @@ export async function GET() {
 
     await dbConnect();
     
-    // Obtener usuarios conectados
-    // Desconectar usuarios inactivos por más de 5 minutos
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    // Aumentamos el tiempo de inactividad a 30 minutos
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     
     await IrcUser.updateMany(
       { 
-        lastSeen: { $lt: fiveMinutesAgo },
+        lastSeen: { $lt: thirtyMinutesAgo },
         isConnected: true
       },
       { 
         $set: { isConnected: false }
+      }
+    );
+
+    // Actualizar lastSeen del usuario actual
+    await IrcUser.updateOne(
+      { userId: session.user.id },
+      { 
+        $set: { lastSeen: new Date() }
       }
     );
 

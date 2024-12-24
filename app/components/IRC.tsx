@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { FiMessageSquare, FiUsers, FiLogOut } from 'react-icons/fi';
@@ -34,11 +34,7 @@ export default function IRC() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, statusMessage]);
-
-  const updateStatusMessage = (message: string) => {
+  const updateStatusMessage = useCallback((message: string) => {
     setStatusMessage(message);
     setLastStatusMessage({
       userId: 'status',
@@ -47,63 +43,9 @@ export default function IRC() {
       timestamp: new Date(),
       isStatus: true
     });
-  };
-
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        setIsReconnecting(true);
-        updateStatusMessage('Conectando a IRC...');
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const response = await fetch('/api/irc/status');
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error('Error de conexión');
-        }
-
-        setIsConnected(data.isConnected);
-        if (data.isConnected) {
-          await new Promise(resolve => setTimeout(resolve, 800));
-          updateStatusMessage('Conectado a IRC');
-          await loadMessages();
-          await loadUsers();
-        } else {
-          updateStatusMessage('No conectado - Usa /join {inviteCode} para unirte');
-        }
-      } catch (error) {
-        console.error('Error checking connection:', error);
-        updateStatusMessage('Error de conexión - Intenta de nuevo');
-        setIsConnected(false);
-      } finally {
-        setIsLoading(false);
-        setIsReconnecting(false);
-      }
-    };
-
-    checkConnection();
-
-    // Verificar conexión cada 30 segundos
-    const intervalId = setInterval(checkConnection, 30000);
-    return () => clearInterval(intervalId);
   }, []);
 
-  useEffect(() => {
-    if (isConnected) {
-      const interval = setInterval(() => {
-        if (!isReconnecting) {
-          loadMessages();
-          loadUsers();
-        }
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [isConnected, isReconnecting]);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
       const response = await fetch('/api/irc/message');
       if (!response.ok) {
@@ -115,9 +57,9 @@ export default function IRC() {
       console.error('Error loading messages:', error);
       setStatusMessage('Error cargando mensajes');
     }
-  };
+  }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/irc/users');
       if (!response.ok) {
@@ -128,7 +70,77 @@ export default function IRC() {
     } catch (error) {
       console.error('Error loading users:', error);
     }
-  };
+  }, []);
+
+  const checkConnection = useCallback(async () => {
+    try {
+      setIsReconnecting(true);
+      updateStatusMessage('Verificando conexión...');
+      
+      const response = await fetch('/api/irc/status');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Error de conexión');
+      }
+
+      setIsConnected(data.isConnected);
+      if (data.isConnected) {
+        updateStatusMessage('Conexión restaurada');
+        await loadMessages();
+        await loadUsers();
+      } else {
+        updateStatusMessage('Desconectado - Usa /join snEiopv0055 para unirte');
+      }
+    } catch (error) {
+      console.error('Error checking connection:', error);
+      updateStatusMessage('Error de conexión - Intenta de nuevo');
+      setIsConnected(false);
+    } finally {
+      setIsLoading(false);
+      setIsReconnecting(false);
+    }
+  }, [loadMessages, loadUsers, updateStatusMessage]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, statusMessage]);
+
+  useEffect(() => {
+    checkConnection();
+
+    // Verificar conexión cada 30 segundos
+    const intervalId = setInterval(checkConnection, 30000);
+    return () => clearInterval(intervalId);
+  }, [checkConnection]);
+
+  useEffect(() => {
+    if (isConnected) {
+      // Intervalo principal para cargar mensajes y usuarios cada 5 segundos
+      const messageInterval = setInterval(() => {
+        if (!isReconnecting) {
+          loadMessages();
+          loadUsers();
+        }
+      }, 5000);
+
+      // Heartbeat cada 15 segundos para mantener la conexión activa
+      const heartbeatInterval = setInterval(() => {
+        if (!isReconnecting) {
+          fetch('/api/irc/users')
+            .catch(error => {
+              console.error('Error en heartbeat:', error);
+              checkConnection();
+            });
+        }
+      }, 15000);
+
+      return () => {
+        clearInterval(messageInterval);
+        clearInterval(heartbeatInterval);
+      };
+    }
+  }, [isConnected, isReconnecting, loadMessages, loadUsers, checkConnection]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
