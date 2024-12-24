@@ -43,10 +43,22 @@ export default function IRC() {
     if (!messagesEndRef.current || (!shouldAutoScroll && !force)) return;
     
     try {
-      messagesEndRef.current.scrollIntoView({
-        behavior: force ? 'instant' : 'smooth',
-        block: 'end'
-      });
+      // Detectar si es móvil
+      const isMobile = window.innerWidth < 768;
+      const scrollContainer = messagesEndRef.current.parentElement;
+      
+      if (isMobile && force) {
+        // En móvil, cuando se fuerza el scroll (al enviar mensaje), hacerlo instantáneo
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      } else {
+        // Comportamiento normal para otros casos
+        messagesEndRef.current.scrollIntoView({
+          behavior: 'instant',
+          block: 'end'
+        });
+      }
     } catch (error) {
       console.error('Error al hacer scroll:', error);
     }
@@ -203,7 +215,7 @@ export default function IRC() {
             loadMessages();
             loadUsers();
             setInput('');
-            // Forzar scroll instantáneo al unirse
+            // Forzar scroll solo al unirse
             setShouldAutoScroll(true);
             scrollToBottom(true);
             return;
@@ -241,7 +253,7 @@ export default function IRC() {
     // Añadir el mensaje optimista inmediatamente
     setMessages(prev => [...prev, optimisticMessage]);
     setInput('');
-    // Forzar scroll instantáneo al enviar mensaje
+    // Forzar scroll al enviar mensaje
     setShouldAutoScroll(true);
     scrollToBottom(true);
 
