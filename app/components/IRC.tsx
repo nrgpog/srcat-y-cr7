@@ -329,39 +329,37 @@ export default function IRC() {
 
         {/* Área de mensajes */}
         <div 
-          className="flex-1 overflow-y-auto p-4 space-y-2"
+          className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 md:mb-0 mb-32"
           onScroll={handleScroll}
         >
-          <div className="pb-20 md:pb-4">
-            {allMessages.map((msg, index) => (
-              <motion.div
-                key={msg.id || `${msg.timestamp}-${index}`}
-                initial={msg.isOptimistic ? { opacity: 1 } : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
-                className={msg.isStatus ? "text-gray-300 text-sm" : "flex items-start gap-2"}
-              >
-                {!msg.isStatus ? (
-                  <>
-                    <span className="text-white whitespace-nowrap">
-                      <span style={{ color: msg.userColor }}>&lt;</span>
-                      {msg.username}
-                      <span style={{ color: msg.userColor }}>&gt;</span>
-                    </span>
-                    <span className="text-gray-300">{msg.message}</span>
-                  </>
-                ) : (
-                  <span className="text-white">{msg.message}</span>
-                )}
-              </motion.div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
+          {allMessages.map((msg, index) => (
+            <motion.div
+              key={msg.id || `${msg.timestamp}-${index}`}
+              initial={msg.isOptimistic ? { opacity: 1 } : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className={msg.isStatus ? "text-gray-300 text-sm" : "flex items-start gap-2"}
+            >
+              {!msg.isStatus ? (
+                <>
+                  <span className="text-white whitespace-nowrap">
+                    <span style={{ color: msg.userColor }}>&lt;</span>
+                    {msg.username}
+                    <span style={{ color: msg.userColor }}>&gt;</span>
+                  </span>
+                  <span className="text-gray-300">{msg.message}</span>
+                </>
+              ) : (
+                <span className="text-white">{msg.message}</span>
+              )}
+            </motion.div>
+          ))}
+          <div ref={messagesEndRef} />
         </div>
         
         {/* Input */}
-        <div className="sticky bottom-0 left-0 right-0 bg-black/50 w-full">
+        <div className="mt-auto fixed md:relative bottom-0 left-0 right-0 bg-black/50 md:bg-transparent w-full z-10">
           <form onSubmit={handleSubmit} className="p-4 border-t border-gray-800 bg-black/30">
             {error && (
               <div className="text-red-400 text-sm mb-2">{error}</div>
@@ -369,11 +367,17 @@ export default function IRC() {
             <div className="flex gap-2">
               <input
                 type="text"
+                inputMode="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={isConnected ? "Escribe un mensaje..." : "Usa /join {inviteCode} para unirte"}
                 className="flex-1 bg-black/40 text-white rounded-lg px-4 py-2 border border-gray-700 
-                  focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none"
+                  focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none
+                  appearance-none"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
