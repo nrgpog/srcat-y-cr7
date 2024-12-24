@@ -326,7 +326,7 @@ export default function IRC() {
 
         {/* Área de mensajes */}
         <div 
-          className="flex-1 overflow-y-auto p-2 space-y-0.5 min-h-0 md:mb-0 mb-20 bg-black"
+          className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0 md:mb-0 mb-20 bg-black"
           onScroll={handleScroll}
         >
           {allMessages.map((msg, index) => (
@@ -336,18 +336,24 @@ export default function IRC() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.1 }}
-              className={msg.isStatus ? "text-gray-500 text-xs" : "flex items-start gap-2"}
+              className={msg.isStatus ? "text-gray-500 text-xs" : "flex flex-col gap-0.5"}
             >
               {!msg.isStatus ? (
-                <div className="flex gap-1 text-gray-300">
-                  <span className="text-gray-600">[</span>
-                  <span className="text-gray-500">{new Date(msg.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="text-gray-600">]</span>
-                  <span style={{ color: msg.userColor }}>
-                    &lt;{msg.username}&gt;
-                  </span>
-                  <span className="text-gray-300">{msg.message}</span>
-                </div>
+                <>
+                  <div className="flex text-gray-300 min-w-0">
+                    <div className="flex gap-1 flex-shrink-0">
+                      <span className="text-gray-600">[</span>
+                      <span className="text-gray-500">{new Date(msg.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-gray-600">]</span>
+                    </div>
+                    <div className="flex flex-col ml-1 min-w-0 flex-1">
+                      <span style={{ color: msg.userColor }} className="flex-shrink-0">
+                        &lt;{msg.username}&gt;
+                      </span>
+                      <span className="text-gray-300 break-all overflow-hidden">{msg.message}</span>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <span className="text-gray-500">* {msg.message}</span>
               )}
