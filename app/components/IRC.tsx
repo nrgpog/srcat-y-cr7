@@ -366,8 +366,8 @@ export default function IRC() {
             )}
             <div className="flex gap-2">
               <input
-                type="text"
-                inputMode="text"
+                type="search"
+                enterKeyHint="send"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
