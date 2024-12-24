@@ -317,7 +317,7 @@ export default function IRC() {
 
         {/* Área de mensajes */}
         <div 
-          className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0"
+          className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 md:mb-0 mb-16"
           onScroll={handleScroll}
         >
           {allMessages.map((msg, index) => (
@@ -347,7 +347,7 @@ export default function IRC() {
         </div>
         
         {/* Input */}
-        <div className="mt-auto">
+        <div className="mt-auto fixed md:relative bottom-0 left-0 right-0 bg-black/50 md:bg-transparent">
           <form onSubmit={handleSubmit} className="p-4 border-t border-gray-800 bg-black/30">
             {error && (
               <div className="text-red-400 text-sm mb-2">{error}</div>
