@@ -374,17 +374,22 @@ export default function IRC() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (input.trim()) {
-                      handleSubmit(e as unknown as React.FormEvent);
+                  if (e.key === 'Enter') {
+                    if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
+                      // No prevenir el comportamiento por defecto para permitir salto de línea
+                      return;
+                    } else {
+                      e.preventDefault();
+                      if (input.trim()) {
+                        handleSubmit(e as unknown as React.FormEvent);
+                      }
                     }
                   }
                 }}
                 placeholder={isConnected ? "Escribe un mensaje..." : "Usa /join {inviteCode} para unirte"}
                 className="flex-1 bg-black/40 text-white rounded-lg px-4 py-2 border border-gray-700 
                   focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none
-                  appearance-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
+                  appearance-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto whitespace-pre-wrap"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
