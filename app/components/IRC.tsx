@@ -370,11 +370,24 @@ export default function IRC() {
                 autoComplete="off"
                 spellCheck={false}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (!value.endsWith('\n')) {
+                    setInput(value);
+                  }
+                }}
+                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                  if (e.key === 'Enter') {
+                    if (e.shiftKey) {
+                      // Permitir salto de línea con Shift+Enter
+                      setInput(prev => prev + '\n');
+                    } else {
+                      // Enviar mensaje con Enter
+                      e.preventDefault();
+                      if (input.trim()) {
+                        handleSubmit(e as unknown as React.FormEvent);
+                      }
+                    }
                   }
                 }}
                 placeholder={isConnected ? "Escribe un mensaje..." : "Usa /join {inviteCode} para unirte"}
