@@ -367,26 +367,17 @@ export default function IRC() {
             <div className="flex gap-2">
               <textarea
                 rows={1}
+                inputMode="text"
+                enterKeyHint="enter"
                 autoComplete="off"
                 spellCheck={false}
                 value={input}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!value.endsWith('\n')) {
-                    setInput(value);
-                  }
-                }}
+                onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-                  if (e.key === 'Enter') {
-                    if (e.shiftKey) {
-                      // Permitir salto de línea con Shift+Enter
-                      setInput(prev => prev + '\n');
-                    } else {
-                      // Enviar mensaje con Enter
-                      e.preventDefault();
-                      if (input.trim()) {
-                        handleSubmit(e as unknown as React.FormEvent);
-                      }
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (input.trim()) {
+                      handleSubmit(e as unknown as React.FormEvent);
                     }
                   }
                 }}
