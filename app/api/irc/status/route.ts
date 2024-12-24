@@ -21,7 +21,7 @@ export async function GET() {
     }
 
     // Si el usuario está activo o idle, considerarlo conectado
-    const isConnected = user.isConnected && user.connectionStatus !== 'disconnected';
+    const isConnected = user.isConnected;
     
     // Si está conectado, actualizar lastSeen
     if (isConnected) {
@@ -30,8 +30,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      isConnected,
-      connectionStatus: user.connectionStatus
+      isConnected
     });
   } catch (error) {
     console.error('Error checking IRC status:', error);
