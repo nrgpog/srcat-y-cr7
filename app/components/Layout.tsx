@@ -1,17 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useSession, signIn, signOut } from "next-auth/react";
-import { FiMenu, FiX, FiCreditCard, FiZap, FiLogOut, FiUser, FiPlay, FiChevronRight, FiHome } from 'react-icons/fi';
+import { FiMenu, FiX, FiCreditCard, FiZap, FiLogOut, FiUser, FiPlay, FiChevronRight, FiHome, FiScissors } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 interface LayoutProps {
   children?: React.ReactNode;
-  onToolChange?: (tool: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll') => void;
+  onToolChange?: (tool: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo') => void;
 }
 
 type MenuItem = {
-  id: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll';
+  id: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo';
   label: string;
   icon: any;
   category: string;
@@ -25,6 +25,7 @@ const menuItems: MenuItem[] = [
   { id: 'steam', label: 'Steam Checker', icon: FiUser, category: 'Accounts' },
   { id: 'disney', label: 'Disney+ Checker', icon: FiPlay, category: 'Streaming' },
   { id: 'crunchyroll', label: 'Crunchyroll Checker', icon: FiPlay, category: 'Streaming' },
+  { id: 'clearcombo', label: 'Clear Combo', icon: FiScissors, category: 'Tools' },
 ];
 
 export default function Layout({ children, onToolChange }: LayoutProps) {

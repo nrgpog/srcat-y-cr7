@@ -9,9 +9,10 @@ import FanslyChecker from './components/FanslyChecker';
 import SteamChecker from './components/SteamChecker';
 import DisneyChecker from './components/DisneyChecker';
 import CrunchyrollChecker from './components/CrunchyrollChecker';
+import ClearCombo from './components/ClearCombo';
 
 export default function Page() {
-  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll'>('home');
+  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo'>('home');
 
   const renderTool = () => {
     switch (currentTool) {
@@ -29,6 +30,8 @@ export default function Page() {
         return <DisneyChecker />;
       case 'crunchyroll':
         return <CrunchyrollChecker />;
+      case 'clearcombo':
+        return <ClearCombo />;
       default:
         return <Home />;
     }
