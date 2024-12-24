@@ -365,19 +365,22 @@ export default function IRC() {
               <div className="text-red-400 text-sm mb-2">{error}</div>
             )}
             <div className="flex gap-2">
-              <input
-                type="search"
-                enterKeyHint="send"
+              <textarea
+                rows={1}
                 autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
+                spellCheck={false}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
                 placeholder={isConnected ? "Escribe un mensaje..." : "Usa /join {inviteCode} para unirte"}
                 className="flex-1 bg-black/40 text-white rounded-lg px-4 py-2 border border-gray-700 
                   focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none
-                  appearance-none"
+                  appearance-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
