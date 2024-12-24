@@ -26,6 +26,7 @@ interface CachedConnection {
 }
 
 let cached: CachedConnection = (global as any).mongoose;
+let isReconnecting = false;
 
 if (!cached) {
   cached = (global as any).mongoose = { conn: null, promise: null };
@@ -33,18 +34,20 @@ if (!cached) {
 
 async function dbConnect() {
   if (cached.conn) {
-    console.log('🔄 Usando conexión a MongoDB existente');
     return cached.conn;
   }
 
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4,
+      maxPoolSize: 10,
+      retryWrites: true,
+      retryReads: true,
+      connectTimeoutMS: 10000,
     };
-
-    console.log('📡 Intentando resolver DNS...');
 
     if (typeof MONGO_URL !== 'string') {
       throw new Error('MONGO_URL debe ser una cadena de texto válida');
@@ -52,11 +55,11 @@ async function dbConnect() {
 
     cached.promise = mongoose.connect(MONGO_URL, opts)
       .then((mongoose) => {
-        console.log('✅ Conexión a MongoDB establecida exitosamente');
+        isReconnecting = false;
         return mongoose;
       })
       .catch((error) => {
-        console.error('❌ Error al conectar con MongoDB:', error);
+        cached.promise = null;
         throw error;
       });
   }
@@ -76,17 +79,26 @@ mongoose.connection.on('connected', () => {
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('❌ Error de Mongoose:', err);
+  if (!isReconnecting) {
+    console.error('❌ Error de Mongoose:', err);
+    isReconnecting = true;
+    cached.promise = null;
+    setTimeout(dbConnect, 5000);
+  }
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('⚠️ Mongoose desconectado de MongoDB');
+  if (!isReconnecting) {
+    console.log('⚠️ Mongoose desconectado de MongoDB');
+    isReconnecting = true;
+    cached.promise = null;
+    setTimeout(dbConnect, 5000);
+  }
 });
 
 process.on('SIGINT', async () => {
   if (cached.conn) {
     await mongoose.connection.close();
-    console.log('MongoDB desconectado debido a la terminación de la aplicación');
     process.exit(0);
   }
 });
