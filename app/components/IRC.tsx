@@ -326,7 +326,7 @@ export default function IRC() {
 
         {/* Área de mensajes */}
         <div 
-          className="flex-1 overflow-y-auto p-2 space-y-0.5 min-h-0 md:mb-0 mb-32 bg-black"
+          className="flex-1 overflow-y-auto p-2 space-y-0.5 min-h-0 md:mb-0 mb-20 bg-black"
           onScroll={handleScroll}
         >
           {allMessages.map((msg, index) => (
