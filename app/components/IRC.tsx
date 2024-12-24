@@ -71,7 +71,7 @@ export default function IRC() {
           await loadMessages();
           await loadUsers();
         } else {
-          updateStatusMessage('No conectado - Usa /join snEiopv0055 para unirte');
+          updateStatusMessage('No conectado - Usa /join {inviteCode} para unirte');
         }
       } catch (error) {
         console.error('Error checking connection:', error);
@@ -274,7 +274,7 @@ export default function IRC() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={isConnected ? "Escribe un mensaje..." : "Usa /join snEiopv0055 para unirte"}
+                placeholder={isConnected ? "Escribe un mensaje..." : "Usa /join {inviteCode} para unirte"}
                 className="flex-1 bg-black/40 text-white rounded-lg px-4 py-2 border border-gray-700 
                   focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none"
               />
