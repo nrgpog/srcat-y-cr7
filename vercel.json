@@ -7,6 +7,10 @@
     "app/api/steam/check/route.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "app/api/ipvanish/check/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
   "regions": ["iad1"]

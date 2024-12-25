@@ -19,8 +19,8 @@ export default function ClearCombo() {
       const lines = input.split('\n');
       const cleanedLines = lines.map(line => {
         const pipeIndex = line.indexOf('|');
-        if (pipeIndex === -1) return line;
-        return line.substring(0, pipeIndex);
+        if (pipeIndex === -1) return line.trim();
+        return line.substring(0, pipeIndex).trim();
       }).filter(Boolean);
 
       setOutput(cleanedLines.join('\n'));
