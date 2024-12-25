@@ -11,9 +11,10 @@ import DisneyChecker from './components/DisneyChecker';
 import CrunchyrollChecker from './components/CrunchyrollChecker';
 import ClearCombo from './components/ClearCombo';
 import IRC from './components/IRC';
+import IPVanishChecker from './components/IPVanishChecker';
 
 export default function Page() {
-  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc'>('home');
+  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish'>('home');
 
   const renderTool = () => {
     switch (currentTool) {
@@ -35,6 +36,8 @@ export default function Page() {
         return <ClearCombo />;
       case 'irc':
         return <IRC />;
+      case 'ipvanish':
+        return <IPVanishChecker />;
       default:
         return <Home />;
     }
