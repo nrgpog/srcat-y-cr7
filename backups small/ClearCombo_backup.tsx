@@ -19,19 +19,8 @@ export default function ClearCombo() {
       const lines = input.split('\n');
       const cleanedLines = lines.map(line => {
         const pipeIndex = line.indexOf('|');
-        const dashIndex = line.indexOf('-');
-        
-        if (pipeIndex === -1 && dashIndex === -1) return line.trim();
-        
-        if (pipeIndex === -1) {
-          return line.substring(0, dashIndex).trim();
-        }
-        if (dashIndex === -1) {
-          return line.substring(0, pipeIndex).trim();
-        }
-        
-        // If both exist, use the first one that appears
-        return line.substring(0, Math.min(pipeIndex, dashIndex)).trim();
+        if (pipeIndex === -1) return line.trim();
+        return line.substring(0, pipeIndex).trim();
       }).filter(Boolean);
 
       setOutput(cleanedLines.join('\n'));
