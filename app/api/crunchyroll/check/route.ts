@@ -3,8 +3,8 @@ import axios from 'axios-https-proxy-fix';
 import crypto from 'crypto';
 import { encrypt, decrypt } from '../../../utils/encryption';
 
-const ZONE_ID = "86512CDB";
-const API_KEY = "36C3982355FD45D1ADA119D39DCF634E";
+const ZONE_ID = "E5F623E6";
+const API_KEY = "7490ACB4C335445BA08A9AE62E85AE03";
 
 interface CrunchyrollResponse {
   success: boolean;
