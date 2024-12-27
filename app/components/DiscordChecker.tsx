@@ -60,6 +60,11 @@ interface ProxyConfig {
   current: number;
 }
 
+interface CopyFormat {
+  type: 'code' | 'url';
+  label: string;
+}
+
 declare global {
   interface Window {
     discordCheckerEventSource?: EventSource;
@@ -86,6 +91,7 @@ export default function DiscordChecker() {
   });
   const [proxyInput, setProxyInput] = useState('');
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copyFormat, setCopyFormat] = useState<CopyFormat>({ type: 'code', label: 'Código' });
 
   useEffect(() => {
     return () => {
@@ -167,6 +173,15 @@ export default function DiscordChecker() {
     }
   };
 
+  const extractCode = (input: string): string => {
+    // Check if it's a Discord promotion URL
+    const urlMatch = input.match(/discord\.com\/billing\/promotions\/([A-Za-z0-9]+)/);
+    if (urlMatch) {
+      return urlMatch[1];
+    }
+    return input.trim();
+  };
+
   const checkCodes = async () => {
     if (!codes.trim()) {
       setError('Por favor, ingresa al menos un código para verificar');
@@ -184,7 +199,7 @@ export default function DiscordChecker() {
 
     const codeList = codes
       .split('\n')
-      .map(code => code.trim())
+      .map(code => extractCode(code))
       .filter(Boolean);
 
     if (codeList.length === 0) {
@@ -268,9 +283,12 @@ export default function DiscordChecker() {
     }
   };
 
-  const copyToClipboard = async (text: string, index: number) => {
+  const copyToClipboard = async (code: string, index: number) => {
     try {
-      await navigator.clipboard.writeText(text);
+      const textToCopy = copyFormat.type === 'url' 
+        ? `https://discord.com/billing/promotions/${code}`
+        : code;
+      await navigator.clipboard.writeText(textToCopy);
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     } catch (err) {
@@ -284,7 +302,9 @@ export default function DiscordChecker() {
     try {
       const validCodes = results
         .filter(result => result.details?.valid)
-        .map(result => result.code)
+        .map(result => copyFormat.type === 'url' 
+          ? `https://discord.com/billing/promotions/${result.code}`
+          : result.code)
         .join('\n');
 
       await navigator.clipboard.writeText(validCodes);
@@ -394,7 +414,7 @@ export default function DiscordChecker() {
         <textarea
           value={codes}
           onChange={(e) => setCodes(e.target.value)}
-          placeholder="Ingresa los códigos promocionales (uno por línea)&#10;Ejemplo: Fa9ncvxXnFwYsbp3YKhEfnCN"
+          placeholder="Ingresa los códigos promocionales (uno por línea)&#10;Ejemplos:&#10;Fa9ncvxXnFwYsbp3YKhEfnCN&#10;https://discord.com/billing/promotions/Fa9ncvxXnFwYsbp3YKhEfnCN"
           className="w-full h-40 bg-black/40 text-white rounded-lg p-4 mb-4 border border-gray-700 
             focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none 
             transition-all duration-300 backdrop-blur-sm resize-none font-mono text-sm"
@@ -445,27 +465,41 @@ export default function DiscordChecker() {
                     Inválidos: {results.filter(r => !r.details?.valid).length}
                   </span>
                 </div>
-                {results.some(r => r.details?.valid) && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={copyAllToClipboard}
-                    className="px-4 py-2 bg-yellow-400/10 text-yellow-400 rounded-lg 
-                      hover:bg-yellow-400/20 transition-colors flex items-center gap-2"
+                <div className="flex items-center gap-2">
+                  <select
+                    value={copyFormat.type}
+                    onChange={(e) => setCopyFormat({
+                      type: e.target.value as 'code' | 'url',
+                      label: e.target.value === 'url' ? 'URL' : 'Código'
+                    })}
+                    className="bg-yellow-400/10 text-yellow-400 rounded-lg px-2 py-1.5 
+                      border border-yellow-400/20 focus:outline-none focus:border-yellow-400"
                   >
-                    {copiedAll ? (
-                      <>
-                        <FiCheck className="w-4 h-4" />
-                        Copiados
-                      </>
-                    ) : (
-                      <>
-                        <FiCopy className="w-4 h-4" />
-                        Copiar Válidos
-                      </>
-                    )}
-                  </motion.button>
-                )}
+                    <option value="code">Copiar como Código</option>
+                    <option value="url">Copiar como URL</option>
+                  </select>
+                  {results.some(r => r.details?.valid) && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={copyAllToClipboard}
+                      className="px-4 py-2 bg-yellow-400/10 text-yellow-400 rounded-lg 
+                        hover:bg-yellow-400/20 transition-colors flex items-center gap-2"
+                    >
+                      {copiedAll ? (
+                        <>
+                          <FiCheck className="w-4 h-4" />
+                          Copiados
+                        </>
+                      ) : (
+                        <>
+                          <FiCopy className="w-4 h-4" />
+                          Copiar Válidos
+                        </>
+                      )}
+                    </motion.button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
