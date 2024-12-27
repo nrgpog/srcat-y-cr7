@@ -13,6 +13,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/crypto-js": "^4.2.2",
     "@types/react-icons": "^2.2.7",
+    "axios": "^1.7.9",
     "axios-https-proxy-fix": "^0.17.1",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",

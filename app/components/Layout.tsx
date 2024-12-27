@@ -1,17 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useSession, signIn, signOut } from "next-auth/react";
-import { FiMenu, FiX, FiCreditCard, FiZap, FiLogOut, FiUser, FiPlay, FiChevronRight, FiHome, FiScissors, FiMessageSquare, FiShield } from 'react-icons/fi';
+import { FiMenu, FiX, FiCreditCard, FiZap, FiLogOut, FiUser, FiPlay, FiChevronRight, FiHome, FiScissors, FiMessageSquare, FiShield, FiGift } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 interface LayoutProps {
   children?: React.ReactNode;
-  onToolChange?: (tool: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish') => void;
+  onToolChange?: (tool: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish' | 'discord') => void;
 }
 
 type MenuItem = {
-  id: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish';
+  id: 'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish' | 'discord';
   label: string;
   icon: any;
   category: string;
@@ -26,6 +26,7 @@ const menuItems: MenuItem[] = [
   { id: 'disney', label: 'Disney+ Checker', icon: FiPlay, category: 'Streaming' },
   { id: 'crunchyroll', label: 'Crunchyroll Checker', icon: FiPlay, category: 'Streaming' },
   { id: 'ipvanish', label: 'IPVanish Checker', icon: FiShield, category: 'VPNs' },
+  { id: 'discord', label: 'Discord Promo Checker', icon: FiGift, category: 'Tools' },
   { id: 'clearcombo', label: 'Clear Combo', icon: FiScissors, category: 'Tools' },
   { id: 'irc', label: 'IRC', icon: FiMessageSquare, category: 'Tools' },
 ];

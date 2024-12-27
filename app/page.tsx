@@ -12,9 +12,10 @@ import CrunchyrollChecker from './components/CrunchyrollChecker';
 import ClearCombo from './components/ClearCombo';
 import IRC from './components/IRC';
 import IPVanishChecker from './components/IPVanishChecker';
+import DiscordChecker from './components/DiscordChecker';
 
 export default function Page() {
-  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish'>('home');
+  const [currentTool, setCurrentTool] = useState<'home' | 'checker' | 'gen' | 'fansly' | 'steam' | 'disney' | 'crunchyroll' | 'clearcombo' | 'irc' | 'ipvanish' | 'discord'>('home');
 
   const renderTool = () => {
     switch (currentTool) {
@@ -38,6 +39,8 @@ export default function Page() {
         return <IRC />;
       case 'ipvanish':
         return <IPVanishChecker />;
+      case 'discord':
+        return <DiscordChecker />;
       default:
         return <Home />;
     }
