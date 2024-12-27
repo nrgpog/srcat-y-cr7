@@ -235,18 +235,13 @@ export const authOptions: NextAuthOptions = {
         }
       },
       profile(profile) {
-        if (profile.avatar === null) {
-          const defaultAvatarNumber = parseInt(profile.discriminator) % 5;
-          profile.image_url = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNumber}.png`;
-        } else {
-          const format = profile.avatar.startsWith("a_") ? "gif" : "png";
-          profile.image_url = `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${format}`;
-        }
         return {
           id: profile.id,
           name: profile.username,
           email: profile.email,
-          image: profile.image_url,
+          image: profile.avatar 
+            ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${profile.avatar.startsWith("a_") ? "gif" : "png"}`
+            : `https://cdn.discordapp.com/embed/avatars/${parseInt(profile.discriminator) % 5}.png`,
         };
       },
     }),
@@ -290,14 +285,6 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       if (user) {
         token.id = (user as ExtendedUser).id;
-        if (account?.provider === 'discord' && account.access_token) {
-          token.accessToken = account.access_token;
-          try {
-            await inviteUserToServer(user.id, account.access_token);
-          } catch (error) {
-            console.error('Error inviting user to server:', error);
-          }
-        }
       }
       return token;
     },
