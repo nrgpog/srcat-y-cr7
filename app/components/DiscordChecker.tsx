@@ -276,7 +276,7 @@ export default function DiscordChecker() {
         }
       }
     } catch (err) {
-      setError('Error al verificar los códigos. Por favor, intenta nuevamente.');
+      setError('Error al verificar los c��digos. Por favor, intenta nuevamente.');
       console.error('Error:', err);
     } finally {
       setIsChecking(false);
@@ -472,11 +472,25 @@ export default function DiscordChecker() {
                       type: e.target.value as 'code' | 'url',
                       label: e.target.value === 'url' ? 'URL' : 'Código'
                     })}
-                    className="bg-yellow-400/10 text-yellow-400 rounded-lg px-2 py-1.5 
-                      border border-yellow-400/20 focus:outline-none focus:border-yellow-400"
+                    className="bg-yellow-400/10 text-yellow-400 rounded-lg px-3 py-2
+                      border border-yellow-400/20 focus:outline-none focus:border-yellow-400
+                      text-sm hidden sm:block"
                   >
                     <option value="code">Copiar como Código</option>
                     <option value="url">Copiar como URL</option>
+                  </select>
+                  <select
+                    value={copyFormat.type}
+                    onChange={(e) => setCopyFormat({
+                      type: e.target.value as 'code' | 'url',
+                      label: e.target.value === 'url' ? 'URL' : 'Código'
+                    })}
+                    className="bg-yellow-400/10 text-yellow-400 rounded-lg px-2 py-1.5
+                      border border-yellow-400/20 focus:outline-none focus:border-yellow-400
+                      text-sm block sm:hidden w-24"
+                  >
+                    <option value="code">Código</option>
+                    <option value="url">URL</option>
                   </select>
                   {results.some(r => r.details?.valid) && (
                     <motion.button
@@ -484,17 +498,20 @@ export default function DiscordChecker() {
                       whileTap={{ scale: 0.95 }}
                       onClick={copyAllToClipboard}
                       className="px-4 py-2 bg-yellow-400/10 text-yellow-400 rounded-lg 
-                        hover:bg-yellow-400/20 transition-colors flex items-center gap-2"
+                        hover:bg-yellow-400/20 transition-colors flex items-center gap-2
+                        whitespace-nowrap text-sm"
                     >
                       {copiedAll ? (
                         <>
                           <FiCheck className="w-4 h-4" />
-                          Copiados
+                          <span className="hidden sm:inline">Copiados</span>
+                          <span className="sm:hidden">OK</span>
                         </>
                       ) : (
                         <>
                           <FiCopy className="w-4 h-4" />
-                          Copiar Válidos
+                          <span className="hidden sm:inline">Copiar Válidos</span>
+                          <span className="sm:hidden">Copiar</span>
                         </>
                       )}
                     </motion.button>
@@ -502,7 +519,7 @@ export default function DiscordChecker() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 {results.map((result, index) => (
                   <motion.div
                     key={index}
