@@ -14,8 +14,8 @@ const CONFIG = {
   MIN_CODES_PER_CHUNK: 5   // Mínimo de códigos por chunk para eficiencia
 };
 
-const ZONE_ID = "E5F623E6";
-const API_KEY = "7490ACB4C335445BA08A9AE62E85AE03";
+const ZONE_ID = "8E284018";
+const API_KEY = "FECC4A2303E848B7A69F8647D123B3EB";
 
 interface ChunkInfo {
   chunkIndex: number;

@@ -28,8 +28,8 @@ export class IPVanishAPI {
   private readonly apiKey: string;
   private readonly clientInfo: { client: string; os: string };
   private sessionId: string;
-  private static readonly ZONE_ID = "C47836A9";
-  private static readonly API_KEY = "7490ACB4C335445BA08A9AE62E85AE03";
+  private static readonly ZONE_ID = "8E284018";
+  private static readonly API_KEY = "FECC4A2303E848B7A69F8647D123B3EB";
   private static readonly MAX_RETRIES = 3;
   private static readonly TIMEOUT = 30000;
 

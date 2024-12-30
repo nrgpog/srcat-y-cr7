@@ -33,8 +33,8 @@ export class FanslyAPI {
   private baseUrl: string;
   private headers: Record<string, string>;
   private sessionId: string;
-  private static readonly ZONE_ID = "E5F623E6";
-  private static readonly API_KEY = "7490ACB4C335445BA08A9AE62E85AE03";
+  private static readonly ZONE_ID = "44D1EC35";
+  private static readonly API_KEY = "FECC4A2303E848B7A69F8647D123B3EB";
 
   constructor() {
     this.baseUrl = 'https://apiv3.fansly.com/api/v1';

@@ -303,13 +303,13 @@ export default function IRC() {
     : messages;
 
   return (
-    <div className="h-[calc(100vh-4rem)] bg-black font-mono text-sm">
+    <div className="h-[calc(100vh-4rem)] bg-black font-mono text-sm md:text-base">
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-black p-2 flex items-center justify-between border-b border-gray-800">
-          <div className="flex items-center gap-4">
-            <span className="text-green-500">irc.colo-solutions.net</span>
-            <div className="flex items-center gap-2 text-gray-500">
+        <div className="bg-black p-2 md:p-3 flex items-center justify-between border-b border-gray-800">
+          <div className="flex items-center gap-2 md:gap-4">
+            <span className="text-green-500 text-xs md:text-sm">irc.colo-solutions.net</span>
+            <div className="flex items-center gap-1 md:gap-2 text-gray-500 text-xs md:text-sm">
               <span>usuarios: {connectedUsers.length}</span>
             </div>
           </div>
@@ -326,7 +326,7 @@ export default function IRC() {
 
         {/* Área de mensajes */}
         <div 
-          className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0 md:mb-0 mb-20 bg-black"
+          className="flex-1 overflow-y-auto p-2 md:p-4 space-y-1 min-h-0 mb-16 md:mb-0 bg-black"
           onScroll={handleScroll}
         >
           {allMessages.map((msg, index) => (
@@ -363,8 +363,8 @@ export default function IRC() {
         </div>
         
         {/* Input */}
-        <div className="mt-auto fixed md:relative bottom-0 left-0 right-0 bg-black md:bg-transparent w-full z-10">
-          <form onSubmit={handleSubmit} className="p-2 border-t border-gray-800">
+        <div className="mt-auto fixed md:relative bottom-0 left-0 right-0 bg-black md:bg-transparent w-full z-10 border-t border-gray-800">
+          <form onSubmit={handleSubmit} className="p-2 md:p-3">
             {error && (
               <div className="text-red-500 text-xs mb-1">{error}</div>
             )}

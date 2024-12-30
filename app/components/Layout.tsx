@@ -33,13 +33,24 @@ const menuItems: MenuItem[] = [
 
 export default function Layout({ children, onToolChange }: LayoutProps) {
   const { data: session, status } = useSession();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [currentTool, setCurrentTool] = useState<MenuItem['id']>('home');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
 
   const handleToolChange = (tool: MenuItem['id']) => {
     setCurrentTool(tool);
@@ -251,9 +262,17 @@ export default function Layout({ children, onToolChange }: LayoutProps) {
               animate={{ x: 0 }}
               exit={{ x: 300 }}
               className="fixed top-16 right-0 w-64 bg-black/80 backdrop-blur-sm border-l 
-                border-gray-800 h-[calc(100vh-4rem)] z-40 md:hidden overflow-y-auto"
+                border-gray-800 h-[calc(100vh-4rem)] z-40 md:hidden overflow-y-auto scrollbar-none"
+              style={{ 
+                overflowY: 'auto', 
+                touchAction: 'pan-y', 
+                WebkitOverflowScrolling: 'touch',
+                msOverflowStyle: 'none',
+                scrollbarWidth: 'none'
+              }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-4 space-y-6">
+              <div className="p-4 space-y-6 pb-20 min-h-[calc(100vh-4rem)]">
                 {/* Mobile user info */}
                 {session?.user?.image && (
                   <div className="flex items-center gap-3 p-3 border-b border-gray-800">

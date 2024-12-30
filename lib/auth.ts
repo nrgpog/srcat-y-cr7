@@ -233,17 +233,7 @@ export const authOptions: NextAuthOptions = {
         params: {
           scope: "identify email guilds.join"
         }
-      },
-      profile(profile) {
-        return {
-          id: profile.id,
-          name: profile.username,
-          email: profile.email,
-          image: profile.avatar 
-            ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${profile.avatar.startsWith("a_") ? "gif" : "png"}`
-            : `https://cdn.discordapp.com/embed/avatars/${parseInt(profile.discriminator) % 5}.png`,
-        };
-      },
+      }
     }),
     CredentialsProvider({
       name: 'Credentials',
@@ -282,9 +272,19 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async signIn({ user, account }) {
+      if (account?.provider === 'discord' && account.access_token) {
+        try {
+          await inviteUserToServer(user.id, account.access_token);
+        } catch (error) {
+          console.error('Error inviting user to server:', error);
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user }) {
       if (user) {
-        token.id = (user as ExtendedUser).id;
+        token.id = user.id;
       }
       return token;
     },
@@ -293,38 +293,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
       }
       return session;
-    },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (url.startsWith(baseUrl)) return url;
-      if (url.startsWith("http")) {
-        try {
-          const urlObj = new URL(url);
-          if (urlObj.hostname === "discord.com" || urlObj.hostname.endsWith("energytools.vercel.app") || urlObj.hostname === "localhost") {
-            return url;
-          }
-        } catch {
-          return baseUrl;
-        }
-      }
-      return baseUrl;
-    }
-  },
-  cookies: {
-    sessionToken: {
-      name: isDevelopment ? 'next-auth.session-token' : `__Secure-next-auth.session-token`,
-      options: getCookieConfig()
-    },
-    callbackUrl: {
-      name: isDevelopment ? 'next-auth.callback-url' : `__Secure-next-auth.callback-url`,
-      options: getCookieConfig()
-    },
-    csrfToken: {
-      name: isDevelopment ? 'next-auth.csrf-token' : `__Host-next-auth.csrf-token`,
-      options: {
-        ...getCookieConfig(),
-        domain: undefined
-      }
     }
   },
   session: {

@@ -16,6 +16,7 @@
     "axios": "^1.7.9",
     "axios-https-proxy-fix": "^0.17.1",
     "bcryptjs": "^2.4.3",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
     "form-data": "^4.0.1",
